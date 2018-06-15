@@ -1,19 +1,66 @@
+#:kivy 1.0
+##:include mycomponent.kv
+##:set my_color (.4, .3, .4)
+
 
 MainWindow:
-    Sidebar:
 
-
-<Sidebar>:
+<MainWindow>:
     orientation: 'vertical'
-    canvas:
-        Color:
-            rgba: 1, 1, 1, 1
-        Rectangle:
-            pos: self.pos
-            size: self.size
-    Button:
-        text: 'h1'
-    Button:
-        text: 'h2'
-    Button:
-        text: 'h3'
+
+    Menubar:
+        orientation: 'horizontal'
+        size_hint: 1, None
+        height: 30
+
+        Label:
+            size_hint: None, 1
+            width: 50
+            text: 'File'
+
+    Toolbar:
+        orientation: 'horizontal'
+        size_hint: 1, None
+        height: 30
+
+        Button:
+            size_hint: None, 1
+            width: 50
+            text: 'Func'
+
+    BoxLayout:
+        orientation: 'horizontal'
+
+        Sidebar:
+            id: sidebar
+            orientation: 'vertical'
+            size_hint: None, 1
+            padding: 5
+            spacing: 5
+            width: 60
+
+            SidebarIcon:
+                size_hint: 1, None
+                height: sidebar.width - 2 * sidebar.padding[0]
+                text: 'h2'
+
+            SidebarIcon:
+                size_hint: 1, None
+                height: sidebar.width - 2 * sidebar.padding[0]
+                text: 'h3'
+
+        TopologyMap:
+            canvas:
+                Color:
+                    rgb: 1, 1, 1
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+
+    Statusbar:
+        orientation: 'horizontal'
+        size_hint: 1, None
+        height: 20
+
+        Label:
+            text: 'Some state'
