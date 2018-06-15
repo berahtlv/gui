@@ -27,7 +27,11 @@ Application instance with its config
 '''
 class Application(App):
 
-    # TODO: app configuration
+    # TODO:
+    # 1. default app config and its location
+    # 1.1. main window size restriction
+    # 1.2. icons theme location
+    # 1.3. default working directory
 
     def build(self):
         mainwindow = Builder.load_file('./kv/main.kv')
