@@ -1,6 +1,8 @@
 #:kivy 1.0
-##:include mycomponent.kv
-##:set my_color (.4, .3, .4)
+
+# workaround: Template can't use ids
+#:set sidebar_width 60
+#:set sidebar_padding 5
 
 
 MainWindow:
@@ -32,24 +34,16 @@ MainWindow:
         orientation: 'horizontal'
 
         Sidebar:
-            id: sidebar
             orientation: 'vertical'
             size_hint: None, 1
-            padding: 5
-            spacing: 5
-            width: 60
+            padding: sidebar_padding
+            spacing: sidebar_padding
+            width: sidebar_width
 
-            SidebarIcon:
-                size_hint: 1, None
-                height: sidebar.width - 2 * sidebar.padding[0]
-                text: 'h2'
-
-            SidebarIcon:
-                size_hint: 1, None
-                height: sidebar.width - 2 * sidebar.padding[0]
-                text: 'h3'
+            # Here are SidebarIcon objects
 
         TopologyMap:
+            id: topo_map
             canvas:
                 Color:
                     rgb: 1, 1, 1
@@ -64,3 +58,10 @@ MainWindow:
 
         Label:
             text: 'Some state'
+
+<SidebarIcon>:
+    group: 'elements'
+    allow_strech: True
+    size_hint: None, None
+    height: sidebar_width - 2 * sidebar_padding
+    width: sidebar_width - 2 * sidebar_padding
