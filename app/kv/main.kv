@@ -4,6 +4,9 @@
 #:set sidebar_width 60
 #:set sidebar_padding 5
 
+# color of application window
+#:set colortheme (0.2, 0.2, 0.2)
+
 
 MainWindow:
 
@@ -11,50 +14,96 @@ MainWindow:
     orientation: 'vertical'
 
     Menubar:
+        id: menubar
         orientation: 'horizontal'
         size_hint: 1, None
         height: 30
+
+        canvas.before:
+            Color:
+                rgb: colortheme
+            Rectangle:
+                pos: self.pos
+                size: self.size
 
         Label:
             size_hint: None, 1
             width: 50
             text: 'File'
 
+        Label:
+            size_hint: None, 1
+            width: 50
+            text: 'View'
+
     Toolbar:
+        id: toolbar
         orientation: 'horizontal'
         size_hint: 1, None
         height: 30
 
+        canvas.before:
+            Color:
+                rgb: colortheme
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
         Button:
             size_hint: None, 1
             width: 50
-            text: 'Func'
+            text: 'Func1'
+
+        Button:
+            size_hint: None, 1
+            width: 50
+            text: 'Func2'
 
     BoxLayout:
         orientation: 'horizontal'
 
         Sidebar:
+            id: sidebar
             orientation: 'vertical'
             size_hint: None, 1
             padding: sidebar_padding
             spacing: sidebar_padding
             width: sidebar_width
 
-            # Here are SidebarIcon objects
-
-        TopologyMap:
-            id: topo_map
-            canvas:
+            canvas.before:
                 Color:
-                    rgb: 1, 1, 1
+                    rgb: colortheme
                 Rectangle:
                     pos: self.pos
                     size: self.size
 
+            # Here are SidebarIcon objects
+
+        TopologyMap:
+            id: topomap
+            active_icon: '' # default value, resolves bug with first click on the Map
+
+            canvas.before:
+                Color:
+                    rgb: 1, 1, 1
+                Rectangle:
+                    pos: 0, 0
+                    size: self.size
+
+            # Here are TopomapIcon objects
+
     Statusbar:
+        id: statusbar
         orientation: 'horizontal'
         size_hint: 1, None
         height: 20
+
+        canvas.before:
+            Color:
+                rgb: colortheme
+            Rectangle:
+                pos: self.pos
+                size: self.size
 
         Label:
             text: 'Some state'
@@ -65,3 +114,12 @@ MainWindow:
     size_hint: None, None
     height: sidebar_width - 2 * sidebar_padding
     width: sidebar_width - 2 * sidebar_padding
+
+<TopomapIcon>:
+    allow_strech: True
+    size_hint: None, None
+    height: 50
+    width: 50
+    drag_rectangle: self.x, self.y, self.width, self.height
+    drag_timeout: 1000
+    drag_distance: 10
