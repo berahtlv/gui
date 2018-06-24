@@ -89,7 +89,7 @@ MainWindow:
                     pos: 0, 0
                     size: self.size
 
-            # Here are TopomapIcon objects
+            # Here are TopomapIcon and TopomapConnect objects
 
     Statusbar:
         id: statusbar
@@ -122,3 +122,13 @@ MainWindow:
     drag_rectangle: self.x, self.y, self.width, self.height
     drag_timeout: 1000
     drag_distance: 10
+
+<TopomapConnect>:
+    size_hint: None, None
+
+    canvas:
+        Color:
+            rgba: self.conn_color
+        Line:
+            width: 3
+            points: self.conn_points
