@@ -125,8 +125,8 @@ class TopologyMap(RelativeLayout):
                 new_element = TopomapIcon(self.active_icon,
                                           pos=self.to_local(*(i - 25 for i in touch.pos))
                                           )
-                self.add_widget(new_element)
                 self.topology.add_node(new_element)
+                self.add_widget(new_element)
 
                 return True
 
@@ -146,7 +146,7 @@ class TopologyMap(RelativeLayout):
         # updates topology
         self.topology.add_nodes_from(self.connectable_el)
         self.topology.add_edge(*self.connectable_el, obj=connection)
-        print(self.topology.adj)
+
         # unselects sidebar icon, active_icon and connectable_el are dropped in on_state event
         self.active_icon.state = 'normal'
 
@@ -191,8 +191,8 @@ class TopomapIcon(DragBehavior, Image):
                         self.parent.remove_widget(c['obj'])
 
                 self.parent.topology.remove_node(self)
-                print(self.parent.topology.adj)
                 self.parent.remove_widget(self)
+
                 return True
 
             # create connection between topomap icons
@@ -208,6 +208,14 @@ class TopomapIcon(DragBehavior, Image):
         return super().on_touch_down(touch)
 
 
+    def on_pos(self, instance, value):
+        # updates connection lines
+        if self.parent:
+            if self.parent.topology.edges(self):
+                for u, v, c in self.parent.topology.edges(self, data=True):
+                    c['obj']._update(u, v)
+
+
 '''
 Connection of draggable elements
 '''
@@ -220,19 +228,30 @@ class TopomapConnect(Widget):
     def __init__(self, coord, **kwargs):
         super().__init__(**kwargs)
 
-        self.size = (max(coord[0], coord[2]) - min(coord[0], coord[2]),
-                     max(coord[1], coord[3]) - min(coord[1], coord[3])
+        self.size = (abs(coord[0] - coord[2]),
+                     abs(coord[1] - coord[3])
                      )
         self.pos = (min(coord[0], coord[2]),
                     min(coord[1], coord[3])
                     )
-        self.conn_color = [1, 0, 0, 1]
+        self.conn_color = [0, 0.6, 0, 1]
         self.conn_points = coord
 
 
     # updates connection properties after TopomapIcon movement
-    def _update():
-        pass
+    def _update(self, el_A, el_B):
+        self.conn_points = (el_A.pos[0] + el_A.size[0]/2,
+                            el_A.pos[1] + el_A.size[1]/2,
+                            el_B.pos[0] + el_B.size[0]/2,
+                            el_B.pos[1] + el_B.size[1]/2
+                            )
+        self.pos = (min(self.conn_points[0], self.conn_points[2]),
+                    min(self.conn_points[1], self.conn_points[3])
+                    )
+        self.size = (abs(self.conn_points[0] - self.conn_points[2]),
+                     abs(self.conn_points[1] - self.conn_points[3])
+                     )
+
 
 '''
 Displays some mouseover info and application states
