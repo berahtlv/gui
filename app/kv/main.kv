@@ -79,17 +79,26 @@ MainWindow:
 
             # Here are SidebarIcon objects
 
-        TopologyMap:
-            id: topomap
+        ScrollView:
+            id: toposcroll
+            effect_cls: 'ScrollEffect'
+            bar_margin: 1
+            bar_width: 7
+            scroll_type: ['content']
 
-            canvas.before:
-                Color:
-                    rgb: 1, 1, 1
-                Rectangle:
-                    pos: 0, 0
-                    size: self.size
+            TopologyMap:
+                id: topomap
+                size_hint: None, None
+                size: 1500, 900
 
-            # Here are TopomapIcon and TopomapConnect objects
+                canvas.before:
+                    Color:
+                        rgb: 1, 1, 1
+                    Rectangle:
+                        pos: 0, 0
+                        size: self.size
+
+                # Here are TopomapIcon and TopomapConnect objects
 
     Statusbar:
         id: statusbar
@@ -115,6 +124,7 @@ MainWindow:
     width: sidebar_width - 2 * sidebar_padding
 
 <TopomapIcon>:
+    id: topoicon
     allow_strech: True
     size_hint: None, None
     height: 50
@@ -122,6 +132,15 @@ MainWindow:
     drag_rectangle: self.x, self.y, self.width, self.height
     drag_timeout: 30000
     drag_distance: 10
+
+    Label:
+        size: self.texture_size
+        x: topoicon.x
+        y: topoicon.y - 20
+        color: 0, 0, 0, 1
+        font_size: 13
+        italic: True
+        text: topoicon.el_id
 
 <TopomapConnect>:
     size_hint: None, None

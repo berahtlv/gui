@@ -6,8 +6,6 @@ from kivy.app import App
 from kivy.lang import Builder
 from kivy.uix.button import Button
 from kivy.uix.boxlayout import BoxLayout
-#from kivy.uix.floatlayout import FloatLayout
-#from kivy.uix.scrollview import ScrollView
 from kivy.uix.relativelayout import RelativeLayout
 from kivy.uix.behaviors.togglebutton import ToggleButtonBehavior
 from kivy.uix.behaviors.drag import DragBehavior
@@ -18,6 +16,7 @@ from kivy.uix.label import Label
 from kivy.graphics import Color, Line, Rectangle
 
 import networkx as nx
+import random
 
 # TODO:
 # 1. App setting panel with default config and its location
@@ -157,6 +156,7 @@ Draggable element
 class TopomapIcon(DragBehavior, Image):
 
     el_type = StringProperty('')
+    el_id = StringProperty('')
 
     def __init__(self, info_obj, **kwargs):
         super().__init__(**kwargs)
@@ -164,6 +164,7 @@ class TopomapIcon(DragBehavior, Image):
         self.img_on = info_obj.img_on
         self.el_type = info_obj.el_type
         self.source = THEMES_FOLDER + self.img_off
+        self.el_id = 'ID'+''.join((str(random.randrange(0,9)) for i in range(3)))
 
 
     def on_touch_down(self, touch):
