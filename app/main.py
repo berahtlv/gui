@@ -135,17 +135,17 @@ class TopologyMap(RelativeLayout):
 
     # connects topomap icons based on accumulated connectable_el objects
     def _connect_el(self):
-        # TODO: improve connection line algorithm
-        a, b = [(i.pos, i.size) for i in self.connectable_el]
-        pos_A = (a[0][0] + a[1][0]/2, a[0][1] + a[1][1]/2)
-        pos_B = (b[0][0] + b[1][0]/2, b[0][1] + b[1][1]/2)
+        # checks if connection between nodes already exists
+        if not self.topology.has_edge(*self.connectable_el):
+            a, b = [(i.pos, i.size) for i in self.connectable_el]
+            pos_A = (a[0][0] + a[1][0]/2, a[0][1] + a[1][1]/2)
+            pos_B = (b[0][0] + b[1][0]/2, b[0][1] + b[1][1]/2)
 
-        # adds graphical representation
-        connection = TopomapConnect(pos_A + pos_B)
-        self.add_widget(connection, canvas='before')
-        # updates topology
-        self.topology.add_nodes_from(self.connectable_el)
-        self.topology.add_edge(*self.connectable_el, obj=connection)
+            # adds graphical representation
+            connection = TopomapConnect(pos_A + pos_B)
+            self.add_widget(connection, canvas='before')
+            # updates topology
+            self.topology.add_edge(*self.connectable_el, obj=connection)
 
         # unselects sidebar icon, active_icon and connectable_el are dropped in on_state event
         self.active_icon.state = 'normal'
@@ -160,30 +160,16 @@ class TopomapIcon(DragBehavior, Image):
 
     def __init__(self, info_obj, **kwargs):
         super().__init__(**kwargs)
-        self.source = THEMES_FOLDER + info_obj.img_off
+        self.img_off = info_obj.img_off
+        self.img_on = info_obj.img_on
         self.el_type = info_obj.el_type
-
-
-    def on_touch_move(self, touch):
-        # allows movement only inside visible part of TopologyMap
-        # TODO: resolve bug with window resizing
-        dx, dy = self.parent.pos
-        # X axis
-        if (self.x + dx) < self.parent.x:
-            self.x = self.parent.x - dx
-        elif (self.x + self.width + dx) > (self.parent.x + self.parent.width):
-            self.x = (self.parent.x + self.parent.width) - self.width - dx
-        # Y axis
-        if (self.y + dy) < self.parent.y:
-            self.y = self.parent.y - dy
-        elif (self.y + self.height + dy) > (self.parent.y + self.parent.height):
-            self.y = (self.parent.y + self.parent.height) - self.height - dy
-
-        return super().on_touch_move(touch)
+        self.source = THEMES_FOLDER + self.img_off
 
 
     def on_touch_down(self, touch):
         if self.collide_point(*touch.pos):
+            self.source = THEMES_FOLDER + self.img_on
+
             # removes element and all its connections from map and topology graph
             if getattr(self.parent.active_icon, 'el_type', None) == 'REMOVE':
                 if self.parent.topology.edges(self):
@@ -208,12 +194,33 @@ class TopomapIcon(DragBehavior, Image):
         return super().on_touch_down(touch)
 
 
+    def on_touch_up(self, touch):
+        # w/o collision, mouse can be released outside of collision region
+        # TODO: maybe improve for collision with mouse_pos ???
+        self.source = THEMES_FOLDER + self.img_off
+
+        return super().on_touch_up(touch)
+
+
     def on_pos(self, instance, value):
-        # updates connection lines
         if self.parent:
+            # updates connection lines
             if self.parent.topology.edges(self):
                 for u, v, c in self.parent.topology.edges(self, data=True):
                     c['obj']._update(u, v)
+
+            # allows movement only inside visible part of TopologyMap
+            dx, dy = self.parent.pos
+            # X axis
+            if (self.x + dx) < self.parent.x:
+                self.x = self.parent.x - dx
+            elif (self.x + self.width + dx) > (self.parent.x + self.parent.width):
+                self.x = (self.parent.x + self.parent.width) - self.width - dx
+            # Y axis
+            if (self.y + dy) < self.parent.y:
+                self.y = self.parent.y - dy
+            elif (self.y + self.height + dy) > (self.parent.y + self.parent.height):
+                self.y = (self.parent.y + self.parent.height) - self.height - dy
 
 
 '''
