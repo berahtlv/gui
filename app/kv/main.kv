@@ -79,26 +79,78 @@ MainWindow:
 
             # Here are SidebarIcon objects
 
-        ScrollView:
-            id: toposcroll
-            effect_cls: 'ScrollEffect'
-            bar_margin: 1
-            bar_width: 7
-            scroll_type: ['content']
+        BoxLayout:
+            orientation: 'vertical'
 
-            TopologyMap:
-                id: topomap
-                size_hint: None, None
-                size: 1500, 900
+            ScrollView:
+                effect_cls: 'ScrollEffect'
+                bar_margin: 1
+                bar_width: 7
+                scroll_type: ['bars', 'content']
+                scroll_distance: 20
+                scroll_timeout: 200
 
-                canvas.before:
-                    Color:
-                        rgb: 1, 1, 1
-                    Rectangle:
-                        pos: 0, 0
-                        size: self.size
+                TopologyMap:
+                    id: topomap
+                    size_hint: None, None
+                    size: 1280, 720
 
-                # Here are TopomapIcon and TopomapConnect objects
+                    canvas.before:
+                        Color:
+                            rgb: 1, 1, 1
+                        Rectangle:
+                            pos: 0, 0
+                            size: self.size
+
+                    # Here are TopomapIcon and TopomapConnect objects
+
+            Splitter:
+                size_hint: 1, None
+                sizable_from: 'top'
+                max_size: 250
+                min_size: 150
+                strip_size: 7
+
+                TabbedPanel:
+                    do_default_tab: False
+                    tab_height: 20
+                    tab_width: 100
+
+                    TabbedPanelItem:
+                        id: basictab
+                        text: 'Basic Info'
+
+                        GridLayout:
+                            cols: 2
+                            rows: 2
+
+                            Label:
+                                text: 'ID'
+                            TextInput:
+                                multiline: False
+
+                            Label:
+                                text: 'Location'
+                            TextInput:
+                                multiline: False
+
+                    TabbedPanelItem:
+                        id: optiontab
+                        text: 'Parameters'
+
+                        GridLayout:
+                            cols: 2
+                            rows: 2
+
+                            Label:
+                                text: 'Length'
+                            TextInput:
+                                multiline: False
+
+                            Label:
+                                text: 'Loss'
+                            TextInput:
+                                multiline: False
 
     Statusbar:
         id: statusbar
@@ -141,6 +193,13 @@ MainWindow:
         font_size: 13
         italic: True
         text: topoicon.el_id
+
+        canvas.before:
+            Color:
+                rgb: 1, 1, 1
+            Rectangle:
+                pos: self.pos
+                size: self.texture_size
 
 <TopomapConnect>:
     size_hint: None, None

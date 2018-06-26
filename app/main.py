@@ -23,17 +23,14 @@ import random
 # 1.1. main window size restriction
 # 1.2. icons theme location (THEMES_FOLDER)
 # 1.3. default working directory (PROJECTS_FOLDER)
+# 1.4. window colortheme (hardcoded in .kv)
 
 # basic app restrictions (SDL2 only!!!)
 from kivy.config import Config
-#Config.set('graphics', 'resizable', False)
-Config.set('graphics', 'width', 800)
-Config.set('graphics', 'height', 600)
+Config.set('graphics', 'width', 1024)
+Config.set('graphics', 'height', 768)
 Config.set('graphics', 'minimum_width', 800)
 Config.set('graphics', 'minimum_height', 550)
-# for dynamic access
-#from kivy.core.window import Window
-#Window.size = (500, 500)
 
 # icons location
 THEMES_FOLDER = 'themes/default/'
@@ -73,7 +70,6 @@ class Sidebar(BoxLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        # TODO: remove lazy workaround for icons centering
         self.add_widget(Widget())
         for el in ELEMENT_LIST:
             self.add_widget(SidebarIcon(el))
