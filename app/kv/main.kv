@@ -3,6 +3,9 @@
 # workaround: Template can't use ids
 #:set sidebar_width 60
 #:set sidebar_padding 5
+#:set menubar_height 30
+#:set toolbar_height 35
+#:set toolbar_padding 3
 
 # color of application window
 #:set colortheme (0.2, 0.2, 0.2)
@@ -17,7 +20,7 @@ MainWindow:
         id: menubar
         orientation: 'horizontal'
         size_hint: 1, None
-        height: 30
+        height: menubar_height
 
         canvas.before:
             Color:
@@ -26,21 +29,15 @@ MainWindow:
                 pos: self.pos
                 size: self.size
 
-        Label:
-            size_hint: None, 1
-            width: 50
-            text: 'File'
-
-        Label:
-            size_hint: None, 1
-            width: 50
-            text: 'View'
+        # Here are MenubarDropDown objects
 
     Toolbar:
         id: toolbar
         orientation: 'horizontal'
         size_hint: 1, None
-        height: 30
+        padding: toolbar_padding
+        spacing: toolbar_padding
+        height: toolbar_height
 
         canvas.before:
             Color:
@@ -49,15 +46,7 @@ MainWindow:
                 pos: self.pos
                 size: self.size
 
-        Button:
-            size_hint: None, 1
-            width: 50
-            text: 'Func1'
-
-        Button:
-            size_hint: None, 1
-            width: 50
-            text: 'Func2'
+        # Here are ToolbarIcon objects
 
     BoxLayout:
         orientation: 'horizontal'
@@ -210,3 +199,21 @@ MainWindow:
         Line:
             width: 3
             points: self.conn_points
+
+<MenubarDropDown>:
+    size_hint: None, 1
+    width: 100
+
+<DropDown>:
+    canvas.before:
+        Color:
+            rgb: 0.4, 0.4, 0.4
+        Rectangle:
+            size: self.size
+            pos: self.pos
+
+<ToolbarIcon>:
+    allow_strech: True
+    size_hint: None, None
+    height: toolbar_height - 2 * toolbar_padding
+    width: toolbar_height - 2 * toolbar_padding

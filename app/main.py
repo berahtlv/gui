@@ -1,6 +1,6 @@
 
 import kivy
-kivy.require('1.11.0')
+kivy.require('1.10.0')
 
 from kivy.app import App
 from kivy.lang import Builder
@@ -8,9 +8,11 @@ from kivy.uix.button import Button
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.relativelayout import RelativeLayout
 from kivy.uix.behaviors.togglebutton import ToggleButtonBehavior
+from kivy.uix.behaviors.button import ButtonBehavior
 from kivy.uix.behaviors.drag import DragBehavior
 from kivy.uix.image import Image
 from kivy.uix.widget import Widget
+from kivy.uix.dropdown import DropDown
 from kivy.properties import StringProperty, ObjectProperty, OptionProperty, ListProperty
 from kivy.uix.label import Label
 from kivy.graphics import Color, Line, Rectangle
@@ -49,17 +51,68 @@ class MainWindow(BoxLayout):
 
 
 '''
-Main application menu
+Main application menubar
 '''
 class Menubar(BoxLayout):
-    pass
+
+    menus = {'File':['New', 'Open', 'Save', 'Save As', 'Exit'],
+             'View':['Fullscreen'],
+             'Edit':['Settings'],
+             'Help':['About']
+             }
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        for menu in self.menus:
+            self.add_widget(MenubarDropDown(menu, self.menus[menu]))
+
+
+'''
+Main menubar menu object
+'''
+class MenubarDropDown(Button):
+
+    def __init__(self, title, funclist, **kwargs):
+        super().__init__(**kwargs)
+
+        self.text = title
+        self.drop = DropDown()
+        self.bind(on_release=self.drop.open)
+
+        for func in funclist:
+            l = Label(text=func, size_hint=(1,None), height=20)
+            self.drop.add_widget(l)
 
 
 '''
 Main toolbar for Menubar function shortcuts
 '''
 class Toolbar(BoxLayout):
-    pass
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        for obj_info in TOOLBAR_LIST:
+            self.add_widget(ToolbarIcon(obj_info))
+
+
+'''
+Main toolbar icon object
+'''
+class ToolbarIcon(ButtonBehavior, Image):
+
+    def __init__(self, tool_info, **kwargs):
+        super().__init__(**kwargs)
+        self.img_on, self.img_off, self.type, self.descr = tool_info
+        self.source = THEMES_FOLDER + self.img_off
+
+
+    def on_state(self, widget, value):
+        if value == 'down':
+            self.source = THEMES_FOLDER + self.img_on
+        else:
+            self.source = THEMES_FOLDER + self.img_off
 
 
 '''
@@ -193,8 +246,8 @@ class TopomapIcon(DragBehavior, Image):
 
     def on_touch_up(self, touch):
         # w/o collision, mouse can be released outside of collision region
-        # TODO: maybe improve for collision with mouse_pos ???
-        self.source = THEMES_FOLDER + self.img_off
+        if not self.source == THEMES_FOLDER + self.img_off:
+            self.source = THEMES_FOLDER + self.img_off
 
         return super().on_touch_up(touch)
 
@@ -274,7 +327,7 @@ class Application(App):
         return mainwindow
 
 
-# sidebar element list (icon_on, icon_off, type, description)
+# configuration lists (icon_on, icon_off, type, description)
 ELEMENT_LIST = (('roadm_on.png', 'roadm_off.png', 'ROADM', 'ROADM element'),
                 ('amplifier_on.png', 'amplifier_off.png', 'AMP', 'Amplifier'),
                 ('transceiver_on.png', 'transceiver_off.png', 'TRX', 'Transciever'),
@@ -284,7 +337,14 @@ ELEMENT_LIST = (('roadm_on.png', 'roadm_off.png', 'ROADM', 'ROADM element'),
 FUNCTION_LIST = (('connect_on.png', 'connect_off.png', 'CONNECTION', 'Connection'),
                  ('remove_on.png', 'remove_off.png', 'REMOVE', 'Remove element'),
                 )
-
+TOOLBAR_LIST = (('new_on.png', 'new_off.png' , 'NEW', 'New topology'),
+                ('open_on.png', 'open_off.png' , 'OPEN', 'Open topology'),
+                ('save_on.png', 'save_off.png', 'SAVE', 'Save topology'),
+                ('saveas_on.png', 'saveas_off.png', 'SAVEAS', 'Save As topology'),
+                ('fullscreen_on.png', 'fullscreen_off.png', 'FULLSCREEN', 'Fullscreen'),
+                ('settings_on.png', 'settings_off.png', 'SETINGS', 'Application settings'),
+                ('info_on.png', 'info_off.png', 'INFO', 'About application'),
+                )
 
 if __name__ == '__main__':
     Application().run()
