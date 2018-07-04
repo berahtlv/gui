@@ -2,6 +2,14 @@
 import kivy
 kivy.require('1.10.0')
 
+# basic app restrictions (SDL2 only!!!)
+from kivy.config import Config
+Config.set('graphics', 'width', 1024)
+Config.set('graphics', 'height', 768)
+Config.set('graphics', 'minimum_width', 800)
+Config.set('graphics', 'minimum_height', 600)
+Config.set('kivy', 'exit_on_escape', 0)
+
 from kivy.app import App
 from kivy.lang import Builder
 from kivy.uix.button import Button
@@ -13,12 +21,19 @@ from kivy.uix.behaviors.drag import DragBehavior
 from kivy.uix.image import Image
 from kivy.uix.widget import Widget
 from kivy.uix.dropdown import DropDown
-from kivy.properties import StringProperty, ObjectProperty, OptionProperty, ListProperty
 from kivy.uix.label import Label
+from kivy.uix.popup import Popup
+from kivy.properties import StringProperty, ObjectProperty, OptionProperty, ListProperty
 from kivy.graphics import Color, Line, Rectangle
+from kivy.factory import Factory
+from kivy.core.window import Window
 
 import networkx as nx
 import random
+from collections import namedtuple
+
+from popups import InfoPopup, OpenProject, SaveProject, QuestionPopup, QuestionMultiPopup
+
 
 # TODO:
 # 1. App setting panel with default config and its location
@@ -27,15 +42,19 @@ import random
 # 1.3. default working directory (PROJECTS_FOLDER)
 # 1.4. window colortheme (hardcoded in .kv)
 
-# basic app restrictions (SDL2 only!!!)
-from kivy.config import Config
-Config.set('graphics', 'width', 1024)
-Config.set('graphics', 'height', 768)
-Config.set('graphics', 'minimum_width', 800)
-Config.set('graphics', 'minimum_height', 550)
-
 # icons location
 THEMES_FOLDER = 'themes/default/'
+
+
+'''
+Application instance with its config
+'''
+class Application(App):
+
+    def build(self):
+        self.title = 'GUI'
+        mainwindow = Builder.load_file('./kv/main.kv')
+        return mainwindow
 
 
 '''
@@ -49,52 +68,172 @@ class MainWindow(BoxLayout):
         global root
         root = self
 
+    # closes popup window
+    def close_popup(self):
+        self._popup.dismiss()
+
+    # opens informative popup window with 'OK' button
+    def open_info(self, title='Info', msg='Informative message.'):
+        content = InfoPopup(_close=self.close_popup, _msg=msg)
+        self._popup = Popup(title=title, size_hint=(None,None), size=(250,200),
+                            auto_dismiss=False, content=content)
+        self._popup.open()
+
+    # opens popup window with two buttons, first button is binded to execute func
+    def open_question(self, title='Question', msg='Question message.', btn=['Ok', 'Cancel'], func=None):
+        content = QuestionPopup(_close=self.close_popup, _msg=msg, _btn=btn, _func=func)
+        self._popup = Popup(title=title, size_hint=(None,None), size=(350,200),
+                            auto_dismiss=False, content=content)
+        self._popup.open()
+
+    # opens popup window with three buttons, first button is binded to execute func1, second to func2
+    def open_question_multi(self, title='Question', msg='Question message.', btn=['Yes', 'No', 'Cancel'],
+                            func1=None, func2=None):
+        content = QuestionMultiPopup(_close=self.close_popup, _msg=msg, _btn=btn, _func1=func1, _func2=func2)
+        self._popup = Popup(title=title, size_hint=(None,None), size=(350,200),
+                            auto_dismiss=False, content=content)
+        self._popup.open()
+
+    # clears topology for new Project
+    def create_new(self):
+        if root.ids['topomap'].topology:
+            #TODO: add test - do topology already saved?
+            def _clear_topology():
+                root.ids['topomap'].topology.clear()
+                root.ids['topomap'].clear_widgets()
+                self._popup.dismiss()
+            def _open_save():
+                self._popup.dismiss()
+                self.open_save()
+
+            self.open_question_multi(msg='Do you want to save changes?\nIf you proceed all changes will be lost!',
+                               func1=_open_save, func2=_clear_topology)
+
+    # opens Open Project popup window
+    def open_open(self):
+        content = OpenProject(_open=self.open_project, _cancel=self.close_popup)
+        self._popup = Popup(title='Open Project', size_hint=(None, None), size=(550, 500),
+                            auto_dismiss=False, content=content)
+        self._popup.open()
+
+    # opens Save/Save As Project popup window
+    def open_save(self):
+        #TODO: add test - do project already exist and save without popup window
+        content = SaveProject(_save=self.save_project, _cancel=self.close_popup)
+        self._popup = Popup(title='Save Project', size_hint=(None, None), size=(550, 500),
+                            auto_dismiss=False, content=content)
+        self._popup.open()
+
+    # opens project from file and adds elements to the topology map
+    def open_project(self, filepath):
+        #TODO: open topology from file
+        self.close_popup()
+        print('topology opened:', filepath)
+
+    # saves active topology to the file
+    def save_project(self, filepath):
+        #TODO: save topology to file
+        self.close_popup()
+        print('topology saved:', filepath)
+
+
+MenuDescr = namedtuple('MenuDescr', 'title func')
+FuncDescr = namedtuple('FuncDescr', 'name clb')
 
 '''
 Main application menubar
 '''
 class Menubar(BoxLayout):
 
-    menus = {'File':['New', 'Open', 'Save', 'Save As', 'Exit'],
-             'View':['Fullscreen'],
-             'Edit':['Settings'],
-             'Help':['About']
-             }
+    menus = (MenuDescr('File', (FuncDescr('New', lambda: root.create_new()),
+                                FuncDescr('Open', lambda: root.open_open()),
+                                FuncDescr('Save', lambda: root.open_save()),
+                                FuncDescr('Save As', lambda: root.open_save()),
+                                FuncDescr('Exit', Application().stop)
+                                )
+                       ),
+             MenuDescr('Edit', (FuncDescr('Settings', 'func'),
+                                )
+                       ),
+             MenuDescr('View', (FuncDescr('Fullscreen', Window.maximize),
+                                )
+                       ),
+             MenuDescr('Help', (FuncDescr('About', lambda: root.open_info('About',
+                                                                          'GUI application v0.001')),
+                                )
+                       )
+             )
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
         for menu in self.menus:
-            self.add_widget(MenubarDropDown(menu, self.menus[menu]))
+            self.add_widget(MenubarMenu(menu))
 
 
 '''
-Main menubar menu object
+Menubar menu object
 '''
-class MenubarDropDown(Button):
+class MenubarMenu(Button):
 
-    def __init__(self, title, funclist, **kwargs):
+    def __init__(self, menu, **kwargs):
         super().__init__(**kwargs)
 
-        self.text = title
-        self.drop = DropDown()
+        self.text = menu.title
+        self.drop = MenuDropDown()
         self.bind(on_release=self.drop.open)
 
-        for func in funclist:
-            l = Label(text=func, size_hint=(1,None), height=20)
+        for func in menu.func:
+            l = MenuButton(self, func.clb, text=func.name)
             self.drop.add_widget(l)
 
+
+'''
+Menu DropDown object
+'''
+class MenuDropDown(DropDown):
+
+    def on_select(self, clb):
+        #TODO: remove if statement when all icons will be implemented
+        if not clb == 'func':
+            clb()
+        else:
+            print(clb)
+
+
+'''
+Menu button object
+'''
+class MenuButton(Button):
+
+    def __init__(self, main_btn, clb, **kwargs):
+        super().__init__(**kwargs)
+
+        self.bind(on_release=lambda btn: main_btn.drop.select(clb))
+
+
+ToolIconDescr = namedtuple('ToolIconDescr', 'down normal type descr clb')
 
 '''
 Main toolbar for Menubar function shortcuts
 '''
 class Toolbar(BoxLayout):
 
+    icons = (ToolIconDescr('new_down.png', 'new.png' , 'NEW', 'New topology', lambda: root.create_new()),
+             ToolIconDescr('open_down.png', 'open.png' , 'OPEN', 'Open topology', lambda: root.open_open()),
+             ToolIconDescr('save_down.png', 'save.png', 'SAVE', 'Save topology', lambda: root.open_save()),
+             ToolIconDescr('saveas_down.png', 'saveas.png', 'SAVE AS', 'Save As topology', lambda: root.open_save()),
+             ToolIconDescr('fullscreen_down.png', 'fullscreen.png', 'FULLSCREEN', 'Fullscreen', Window.maximize),
+             ToolIconDescr('settings_down.png', 'settings.png', 'SETTINGS', 'Application settings', 'func'),
+             ToolIconDescr('info_down.png', 'info.png', 'INFO', 'About application', lambda: root.open_info('About',
+                                                                                                        'GUI application v0.001')),
+             )
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        for obj_info in TOOLBAR_LIST:
-            self.add_widget(ToolbarIcon(obj_info))
+        for icon in self.icons:
+            self.add_widget(ToolbarIcon(icon))
 
 
 '''
@@ -102,33 +241,47 @@ Main toolbar icon object
 '''
 class ToolbarIcon(ButtonBehavior, Image):
 
-    def __init__(self, tool_info, **kwargs):
+    def __init__(self, icon_info, **kwargs):
         super().__init__(**kwargs)
-        self.img_on, self.img_off, self.type, self.descr = tool_info
-        self.source = THEMES_FOLDER + self.img_off
-
+        self.img_down, self.img, self.type, self.descr, self.clb = icon_info
+        self.source = THEMES_FOLDER + self.img
+        #TODO: remove if statement when all icons will be implemented
+        if not self.clb == 'func':
+            self.bind(on_release=lambda btn: self.clb())
 
     def on_state(self, widget, value):
         if value == 'down':
-            self.source = THEMES_FOLDER + self.img_on
+            self.source = THEMES_FOLDER + self.img_down
         else:
-            self.source = THEMES_FOLDER + self.img_off
+            self.source = THEMES_FOLDER + self.img
 
+
+SideIconDescr = namedtuple('SideIconDescr', 'down normal type descr')
 
 '''
 Sidebar with element list
 '''
 class Sidebar(BoxLayout):
 
+    icons_el = (SideIconDescr('roadm_down.png', 'roadm.png', 'ROADM', 'ROADM element'),
+               SideIconDescr('amplifier_down.png', 'amplifier.png', 'EDFA', 'Amplifier'),
+               SideIconDescr('transceiver_down.png', 'transceiver.png', 'TRX', 'Transciever'),
+               SideIconDescr('fiber_down.png', 'fiber.png', 'FIBER', 'Fiber span'),
+               SideIconDescr('fused_down.png', 'fused.png', 'FUSED', 'Fuse or physical connection'),
+               )
+    icons_func = (SideIconDescr('connect_down.png', 'connect.png', 'CONNECTION', 'Connection'),
+                 SideIconDescr('remove_down.png', 'remove.png', 'REMOVE', 'Remove element'),
+                )
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
         self.add_widget(Widget())
-        for el in ELEMENT_LIST:
-            self.add_widget(SidebarIcon(el))
+        for icon in self.icons_el:
+            self.add_widget(SidebarIcon(icon))
         self.add_widget(Widget(size_hint=(1, None), height=50))
-        for func in FUNCTION_LIST:
-            self.add_widget(SidebarIcon(func))
+        for icon in self.icons_func:
+            self.add_widget(SidebarIcon(icon))
         self.add_widget(Widget())
 
 
@@ -137,18 +290,17 @@ Sidebar element object
 '''
 class SidebarIcon(ToggleButtonBehavior, Image):
 
-    def __init__(self, el_info, **kwargs):
+    def __init__(self, icon_info, **kwargs):
         super().__init__(**kwargs)
-        self.img_on, self.img_off, self.el_type, self.el_descr = el_info
-        self.source = THEMES_FOLDER + self.img_off
-
+        self.img_down, self.img, self.el_type, self.el_descr = icon_info
+        self.source = THEMES_FOLDER + self.img
 
     def on_state(self, widget, value):
         if value == 'down':
-            self.source = THEMES_FOLDER + self.img_on
+            self.source = THEMES_FOLDER + self.img_down
             root.ids['topomap'].active_icon = self
         else:
-            self.source = THEMES_FOLDER + self.img_off
+            self.source = THEMES_FOLDER + self.img
             # drops connectable element list and active icon when unselected
             root.ids['topomap'].active_icon = None
             root.ids['topomap'].connectable_el = []
@@ -161,11 +313,7 @@ class TopologyMap(RelativeLayout):
 
     active_icon = ObjectProperty(None, allownone=True)
     connectable_el = ListProperty([])
-    topology = ObjectProperty(nx.Graph())
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
+    topology = ObjectProperty(nx.Graph()) #TODO: change to DiGraph
 
     def on_touch_down(self, touch):
         if self.active_icon and self.collide_point(*touch.pos):
@@ -179,7 +327,6 @@ class TopologyMap(RelativeLayout):
                 return True
 
         return super().on_touch_down(touch)
-
 
     # connects topomap icons based on accumulated connectable_el objects
     def _connect_el(self):
@@ -207,18 +354,17 @@ class TopomapIcon(DragBehavior, Image):
     el_type = StringProperty('')
     el_id = StringProperty('')
 
-    def __init__(self, info_obj, **kwargs):
+    def __init__(self, active_obj, **kwargs):
         super().__init__(**kwargs)
-        self.img_off = info_obj.img_off
-        self.img_on = info_obj.img_on
-        self.el_type = info_obj.el_type
-        self.source = THEMES_FOLDER + self.img_off
+        self.img = active_obj.img
+        self.img_down = active_obj.img_down
+        self.el_type = active_obj.el_type
+        self.source = THEMES_FOLDER + self.img
         self.el_id = 'ID'+''.join((str(random.randrange(0,9)) for i in range(3)))
-
 
     def on_touch_down(self, touch):
         if self.collide_point(*touch.pos):
-            self.source = THEMES_FOLDER + self.img_on
+            self.source = THEMES_FOLDER + self.img_down
 
             # removes element and all its connections from map and topology graph
             if getattr(self.parent.active_icon, 'el_type', None) == 'REMOVE':
@@ -243,14 +389,12 @@ class TopomapIcon(DragBehavior, Image):
 
         return super().on_touch_down(touch)
 
-
     def on_touch_up(self, touch):
         # w/o collision, mouse can be released outside of collision region
-        if not self.source == THEMES_FOLDER + self.img_off:
-            self.source = THEMES_FOLDER + self.img_off
+        if not self.source == THEMES_FOLDER + self.img:
+            self.source = THEMES_FOLDER + self.img
 
         return super().on_touch_up(touch)
-
 
     def on_pos(self, instance, value):
         if self.parent:
@@ -294,7 +438,6 @@ class TopomapConnect(Widget):
         self.conn_color = [0, 0.6, 0, 1]
         self.conn_points = coord
 
-
     # updates connection properties after TopomapIcon movement
     def _update(self, el_A, el_B):
         self.conn_points = (el_A.pos[0] + el_A.size[0]/2,
@@ -316,35 +459,6 @@ Displays some mouseover info and application states
 class Statusbar(BoxLayout):
     pass
 
-
-'''
-Application instance with its config
-'''
-class Application(App):
-
-    def build(self):
-        mainwindow = Builder.load_file('./kv/main.kv')
-        return mainwindow
-
-
-# configuration lists (icon_on, icon_off, type, description)
-ELEMENT_LIST = (('roadm_on.png', 'roadm_off.png', 'ROADM', 'ROADM element'),
-                ('amplifier_on.png', 'amplifier_off.png', 'AMP', 'Amplifier'),
-                ('transceiver_on.png', 'transceiver_off.png', 'TRX', 'Transciever'),
-                ('fiber_on.png', 'fiber_off.png', 'FIBER', 'Fiber span'),
-                ('fused_on.png', 'fused_off.png', 'FUSED', 'Fuse or physical connection'),
-                )
-FUNCTION_LIST = (('connect_on.png', 'connect_off.png', 'CONNECTION', 'Connection'),
-                 ('remove_on.png', 'remove_off.png', 'REMOVE', 'Remove element'),
-                )
-TOOLBAR_LIST = (('new_on.png', 'new_off.png' , 'NEW', 'New topology'),
-                ('open_on.png', 'open_off.png' , 'OPEN', 'Open topology'),
-                ('save_on.png', 'save_off.png', 'SAVE', 'Save topology'),
-                ('saveas_on.png', 'saveas_off.png', 'SAVEAS', 'Save As topology'),
-                ('fullscreen_on.png', 'fullscreen_off.png', 'FULLSCREEN', 'Fullscreen'),
-                ('settings_on.png', 'settings_off.png', 'SETINGS', 'Application settings'),
-                ('info_on.png', 'info_off.png', 'INFO', 'About application'),
-                )
 
 if __name__ == '__main__':
     Application().run()

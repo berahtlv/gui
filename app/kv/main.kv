@@ -1,14 +1,18 @@
+# Main application layout
+
 #:kivy 1.0
+
+#:include kv/popups.kv
 
 # workaround: Template can't use ids
 #:set sidebar_width 60
 #:set sidebar_padding 5
 #:set menubar_height 30
-#:set toolbar_height 35
+#:set toolbar_height 33
 #:set toolbar_padding 3
 
 # color of application window
-#:set colortheme (0.2, 0.2, 0.2)
+#:set colortheme (0.2, 0.2, 0.2, 1)
 
 
 MainWindow:
@@ -24,7 +28,7 @@ MainWindow:
 
         canvas.before:
             Color:
-                rgb: colortheme
+                rgba: colortheme
             Rectangle:
                 pos: self.pos
                 size: self.size
@@ -36,12 +40,12 @@ MainWindow:
         orientation: 'horizontal'
         size_hint: 1, None
         padding: toolbar_padding
-        spacing: toolbar_padding
+        spacing: 10
         height: toolbar_height
 
         canvas.before:
             Color:
-                rgb: colortheme
+                rgba: colortheme
             Rectangle:
                 pos: self.pos
                 size: self.size
@@ -61,7 +65,7 @@ MainWindow:
 
             canvas.before:
                 Color:
-                    rgb: colortheme
+                    rgba: colortheme
                 Rectangle:
                     pos: self.pos
                     size: self.size
@@ -74,8 +78,8 @@ MainWindow:
             ScrollView:
                 effect_cls: 'ScrollEffect'
                 bar_margin: 1
-                bar_width: 7
-                scroll_type: ['bars', 'content']
+                bar_width: 10
+                scroll_type: ['bars']
                 scroll_distance: 20
                 scroll_timeout: 200
 
@@ -149,7 +153,7 @@ MainWindow:
 
         canvas.before:
             Color:
-                rgb: colortheme
+                rgba: colortheme
             Rectangle:
                 pos: self.pos
                 size: self.size
@@ -200,11 +204,19 @@ MainWindow:
             width: 3
             points: self.conn_points
 
-<MenubarDropDown>:
+<MenubarMenu>:
     size_hint: None, 1
     width: 100
+    background_normal: ''
+    background_color: colortheme
 
-<DropDown>:
+<MenuButton>:
+    size_hint: 1, None
+    height: 20
+    background_normal: ''
+    background_color: 0.4, 0.4, 0.4, 1
+
+<MenuDropDown>:
     canvas.before:
         Color:
             rgb: 0.4, 0.4, 0.4

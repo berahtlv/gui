@@ -1,0 +1,142 @@
+# Describes Popups layout, addition to main.kv
+#:import os os
+
+<InfoPopup>:
+    orientation: 'vertical'
+
+    Label:
+        text: root._msg
+
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint: 1, None
+        height: 35
+        padding: 0, 0, 0, 5
+
+        Widget:
+            # empty space
+
+        Button:
+            text: 'OK'
+            size_hint: None, 1
+            width: 100
+            on_release: root._close()
+
+        Widget:
+            # empty space
+
+<QuestionPopup>:
+    orientation: 'vertical'
+
+    Label:
+        text: root._msg
+        text_size: root.width, None
+        size: self.texture_size
+
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint: 1, None
+        height: 30
+        spacing: 10
+
+        Button:
+            text: root._btn[0]
+            on_release: root._func()
+
+        Button:
+            text: root._btn[1]
+            on_release: root._close()
+
+<QuestionMultiPopup>:
+    orientation: 'vertical'
+
+    Label:
+        text: root._msg
+        text_size: root.width, None
+        size: self.texture_size
+        padding_x: 15
+
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint: 1, None
+        height: 30
+        spacing: 10
+
+        Button:
+            text: root._btn[0]
+            on_release: root._func1()
+
+        Button:
+            text: root._btn[1]
+            on_release: root._func2()
+
+        Button:
+            text: root._btn[2]
+            on_release: root._close()
+
+<OpenProject>:
+    orientation: 'vertical'
+
+    FileChooserIconView:
+        id: filechooser
+        filters: ['*.json', '*.txt']
+        path: os.getcwd()
+        
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint: 1, None
+        height: 36
+        padding: 3
+        spacing: 10
+
+        Widget:
+            # empty space
+
+        Button:
+            text: 'Open'
+            size_hint: None, 1
+            width: 100
+            on_release: root._open(filechooser.selection[0] if filechooser.selection else '')
+
+        Button:
+            text: 'Cancel'
+            size_hint: None, 1
+            width: 100
+            on_release: root._cancel()
+
+<SaveProject>:
+    orientation: 'vertical'
+
+    FileChooserIconView:
+        id: filechooser
+        filters: ['*.json', '*.txt']
+        on_selection: filename.text = os.path.split(self.selection[0])[1] if self.selection else ''
+        path: os.getcwd()
+
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint: 1, None
+        height: 36
+        padding: 3
+        spacing: 10
+
+        Label:
+            text: 'Name:'
+            size_hint: None, 1
+            width: 50
+
+        TextInput:
+            id: filename
+            multiline: False
+
+        Button:
+            text: 'Save'
+            size_hint: None, 1
+            width: 100
+            on_release: root._save(filechooser.selection[0] if filechooser.selection else '')
+
+        Button:
+            text: 'Cancel'
+            size_hint: None, 1
+            width: 100
+            on_release: root._cancel()
