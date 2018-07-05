@@ -6,6 +6,9 @@
 
     Label:
         text: root._msg
+        text_size: root.width, None
+        size: self.texture_size
+        padding_x: 15
 
     BoxLayout:
         orientation: 'horizontal'
@@ -32,6 +35,7 @@
         text: root._msg
         text_size: root.width, None
         size: self.texture_size
+        padding_x: 15
 
     BoxLayout:
         orientation: 'horizontal'
@@ -77,11 +81,11 @@
 <OpenProject>:
     orientation: 'vertical'
 
-    FileChooserIconView:
+    FileChooserListView:
         id: filechooser
-        filters: ['*.json', '*.txt']
-        path: os.getcwd()
-        
+        filters: ['*.json']
+        path: app.project_path
+
     BoxLayout:
         orientation: 'horizontal'
         size_hint: 1, None
@@ -107,11 +111,11 @@
 <SaveProject>:
     orientation: 'vertical'
 
-    FileChooserIconView:
+    FileChooserListView:
         id: filechooser
-        filters: ['*.json', '*.txt']
+        filters: ['*.json']
         on_selection: filename.text = os.path.split(self.selection[0])[1] if self.selection else ''
-        path: os.getcwd()
+        path: app.project_path
 
     BoxLayout:
         orientation: 'horizontal'

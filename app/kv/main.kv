@@ -11,9 +11,6 @@
 #:set toolbar_height 33
 #:set toolbar_padding 3
 
-# color of application window
-#:set colortheme (0.2, 0.2, 0.2, 1)
-
 
 MainWindow:
 
@@ -28,7 +25,7 @@ MainWindow:
 
         canvas.before:
             Color:
-                rgba: colortheme
+                rgba: app.colortheme
             Rectangle:
                 pos: self.pos
                 size: self.size
@@ -45,7 +42,7 @@ MainWindow:
 
         canvas.before:
             Color:
-                rgba: colortheme
+                rgba: app.colortheme
             Rectangle:
                 pos: self.pos
                 size: self.size
@@ -65,7 +62,7 @@ MainWindow:
 
             canvas.before:
                 Color:
-                    rgba: colortheme
+                    rgba: app.colortheme
                 Rectangle:
                     pos: self.pos
                     size: self.size
@@ -153,7 +150,7 @@ MainWindow:
 
         canvas.before:
             Color:
-                rgba: colortheme
+                rgba: app.colortheme
             Rectangle:
                 pos: self.pos
                 size: self.size
@@ -208,7 +205,7 @@ MainWindow:
     size_hint: None, 1
     width: 100
     background_normal: ''
-    background_color: colortheme
+    background_color: app.colortheme
 
 <MenuButton>:
     size_hint: 1, None
