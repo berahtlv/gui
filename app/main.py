@@ -24,8 +24,8 @@ from kivy.uix.dropdown import DropDown
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.settings import SettingsWithSidebar
-from kivy.properties import StringProperty, ObjectProperty, OptionProperty, ListProperty
-from kivy.graphics import Color, Line, Rectangle
+from kivy.properties import (StringProperty, ObjectProperty, OptionProperty,
+                             ListProperty, NumericProperty)
 from kivy.core.window import Window
 
 import networkx as nx
@@ -391,15 +391,13 @@ class TopologyMap(RelativeLayout):
         if not (self.topology.has_edge(*self.connectable_el) or
                 self.topology.has_edge(*self.connectable_el[::-1])
                 ):
-            a, b = [(i.pos, i.size) for i in self.connectable_el]
-            pos_A = (a[0][0] + a[1][0]/2, a[0][1] + a[1][1]/2)
-            pos_B = (b[0][0] + b[1][0]/2, b[0][1] + b[1][1]/2)
-
+            coord = TopomapConnect.get_coord(*self.connectable_el)
             # adds graphical representation
-            connection = TopomapConnect(pos_A + pos_B)
+            connection = TopomapConnect(coord)
+
             # TODO: find the reason of unexpected keyword argument 'canvas'
             #       workaround at least for my installation
-            if platform.system() == 'Windows':
+            if platform.system() == 'Linux':
                 self.add_widget(connection)
             else:
                 self.add_widget(connection, canvas='before')
@@ -418,6 +416,7 @@ class TopomapIcon(DragBehavior, Image):
 
     el_type = StringProperty('')
     el_id = StringProperty('')
+    el_side = NumericProperty(50) # size of square side, code assumes squared icon
 
     def __init__(self, active_obj, **kwargs):
         super().__init__(**kwargs)
@@ -579,18 +578,92 @@ class TopomapConnect(Widget):
             self.parent.topology.remove_edge(*edge[0])
 
     # updates connection position after TopomapIcon movement
-    def _update(self, el_A, el_B):
-        self.conn_points = (el_A.pos[0] + el_A.size[0]/2,
-                            el_A.pos[1] + el_A.size[1]/2,
-                            el_B.pos[0] + el_B.size[0]/2,
-                            el_B.pos[1] + el_B.size[1]/2
-                            )
+    def _update(self, A, B):
+        self.conn_points = self.get_coord(A, B)
         self.pos = (min(self.conn_points[0], self.conn_points[2]),
                     min(self.conn_points[1], self.conn_points[3])
                     )
         self.size = (abs(self.conn_points[0] - self.conn_points[2]),
                      abs(self.conn_points[1] - self.conn_points[3])
                      )
+
+    # calculates and returns connection Line coordinates based on two involved TopomapIcon objects
+    @staticmethod
+    def get_coord(A, B):
+        if isinstance(A, TopomapIcon) and isinstance(B, TopomapIcon):
+            LinePoint = namedtuple('LinePoint', 'x y')
+            # based on calculation from/to center of the icon
+            dx = dy = A.el_side / 2
+            pos_A = LinePoint(A.x + dx, A.y + dy)
+            pos_B = LinePoint(B.x + dx, B.y + dy)
+
+            # if Line is parallel to Y axis
+            if pos_A.x == pos_B.x:
+                # A below B
+                if pos_A.y < pos_A.y + dy <= pos_B.y:
+                    pos_A = pos_A._replace(y=pos_A.y + dy)
+                    pos_B = pos_B._replace(y=pos_B.y - dy)
+
+                # A above B
+                elif pos_A.y > pos_A.y - dy >= pos_B.y:
+                    pos_A = pos_A._replace(y=pos_A.y - dy)
+                    pos_B = pos_B._replace(y=pos_B.y + dy)
+
+                return pos_A + pos_B
+
+            # if Line is parallel to X axis
+            elif pos_A.y == pos_B.y:
+                # B from right side of A
+                if pos_A.x < pos_A.x + dx <= pos_B.x:
+                    pos_A = pos_A._replace(x=pos_A.x + dx)
+                    pos_B = pos_B._replace(x=pos_B.x - dx)
+
+                # B from left side of A
+                elif pos_B.x <= pos_A.x - dx < pos_A.x:
+                    pos_A = pos_A._replace(x=pos_A.x - dx)
+                    pos_B = pos_B._replace(x=pos_B.x + dx)
+
+                return pos_A + pos_B
+
+            # Line not parallel to X or Y axis (using y = ax + c)
+            else:
+                a = (pos_A.y - pos_B.y) / (pos_A.x - pos_B.x)
+                c = pos_A.y - a * pos_A.x
+
+                # finding the direction of the line based on slope coefficient
+                if (1 >= a > 0) or (0 > a >= -1):
+                    # B is from left side
+                    if pos_A.x < pos_A.x + dx <= pos_B.x:
+                        y = a * (pos_A.x + dx) + c
+                        pos_A = pos_A._replace(x=pos_A.x + dx, y=y)
+                        y = a * (pos_B.x - dx) + c
+                        pos_B = pos_B._replace(x=pos_B.x - dx, y=y)
+
+                    # B is from right side
+                    elif pos_B.x <= pos_A.x - dx < pos_A.x:
+                        y = a * (pos_A.x - dx) + c
+                        pos_A = pos_A._replace(x=pos_A.x - dx, y=y)
+                        y = a * (pos_B.x + dx) + c
+                        pos_B = pos_B._replace(x=pos_B.x + dx, y=y)
+
+                    return pos_A + pos_B
+
+                elif a > 1 or a < -1:
+                    # B is above
+                    if pos_A.y < pos_A.y + dy <= pos_B.y:
+                        x = (pos_A.y + dy - c) / a
+                        pos_A = pos_A._replace(x=x, y=pos_A.y + dy)
+                        x = (pos_B.y - dy - c) / a
+                        pos_B = pos_B._replace(x=x, y=pos_B.y - dy)
+
+                    # B is below
+                    elif pos_A.y > pos_A.y - dy >= pos_B.y:
+                        x = (pos_A.y - dy - c) / a
+                        pos_A = pos_A._replace(x=x, y=pos_A.y - dy)
+                        x = (pos_B.y + dy - c) / a
+                        pos_B = pos_B._replace(x=x, y=pos_B.y + dy)
+
+                    return pos_A + pos_B
 
 
 '''
