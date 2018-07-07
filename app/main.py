@@ -23,14 +23,13 @@ from kivy.uix.widget import Widget
 from kivy.uix.dropdown import DropDown
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
+from kivy.uix.settings import SettingsWithSidebar
 from kivy.properties import StringProperty, ObjectProperty, OptionProperty, ListProperty
 from kivy.graphics import Color, Line, Rectangle
-from kivy.factory import Factory
 from kivy.core.window import Window
-from kivy.uix.settings import SettingsWithSidebar
 
 import networkx as nx
-import random, os.path
+import random, os.path, platform
 from collections import namedtuple
 
 from popups import InfoPopup, OpenProject, SaveProject, QuestionPopup, QuestionMultiPopup
@@ -368,11 +367,12 @@ class TopologyMap(RelativeLayout):
 
     active_icon = ObjectProperty(None, allownone=True)
     connectable_el = ListProperty([])
-    topology = ObjectProperty(nx.Graph()) #TODO: change to DiGraph
+    topology = ObjectProperty(nx.DiGraph())
 
     def on_touch_down(self, touch):
         if self.active_icon and self.collide_point(*touch.pos):
             if not self.active_icon.el_type in ['REMOVE', 'CONNECTION']:
+                #TODO: add subclassed TopomapIcon elements
                 new_element = TopomapIcon(self.active_icon,
                                           pos=self.to_local(*(i - 25 for i in touch.pos))
                                           )
@@ -385,17 +385,27 @@ class TopologyMap(RelativeLayout):
 
     # connects topomap icons based on accumulated connectable_el objects
     def _connect_el(self):
-        # checks if connection between nodes already exists
-        if not self.topology.has_edge(*self.connectable_el):
+        # checks if connection between nodes already exist, excludes parallel edges
+        # TopomapConnect.conn_dir controls direction type and related edges
+        # conn_dir = 'bidir' by default
+        if not (self.topology.has_edge(*self.connectable_el) or
+                self.topology.has_edge(*self.connectable_el[::-1])
+                ):
             a, b = [(i.pos, i.size) for i in self.connectable_el]
             pos_A = (a[0][0] + a[1][0]/2, a[0][1] + a[1][1]/2)
             pos_B = (b[0][0] + b[1][0]/2, b[0][1] + b[1][1]/2)
 
             # adds graphical representation
             connection = TopomapConnect(pos_A + pos_B)
-            self.add_widget(connection, canvas='before')
-            # updates topology
+            # TODO: find the reason of unexpected keyword argument 'canvas'
+            #       workaround at least for my installation
+            if platform.system() == 'Windows':
+                self.add_widget(connection)
+            else:
+                self.add_widget(connection, canvas='before')
+            # updates topology, two edges as conn_dir = 'bidir'
             self.topology.add_edge(*self.connectable_el, obj=connection)
+            self.topology.add_edge(*self.connectable_el[::-1], obj=connection)
 
         # unselects sidebar icon, active_icon and connectable_el are dropped in on_state event
         self.active_icon.state = 'normal'
@@ -423,10 +433,18 @@ class TopomapIcon(DragBehavior, Image):
 
             # removes element and all its connections from map and topology graph
             if getattr(self.parent.active_icon, 'el_type', None) == 'REMOVE':
-                if self.parent.topology.edges(self):
-                    for u, v, c in self.parent.topology.edges(self, data=True):
-                        self.parent.remove_widget(c['obj'])
+                # removes related TopomapConnect objects from TopologyMap
+                if self.parent.topology.in_edges(self) or self.parent.topology.out_edges(self):
+                    edges = tuple(self.parent.topology.in_edges(self, data=True)) + \
+                                tuple(self.parent.topology.out_edges(self, data=True))
+                    for u, v, c in edges:
+                        uniq = []
+                        if c not in uniq:
+                            # ensures that connection is removed once
+                            uniq.append(c)
+                            self.parent.remove_widget(c['obj'])
 
+                # related DiGraph edges are removed automatically
                 self.parent.topology.remove_node(self)
                 self.parent.remove_widget(self)
 
@@ -434,6 +452,7 @@ class TopomapIcon(DragBehavior, Image):
 
             # create connection between topomap icons
             if getattr(self.parent.active_icon, 'el_type', None) == 'CONNECTION':
+                # excludes self loops
                 if not self in self.parent.connectable_el:
                     self.parent.connectable_el.append(self)
 
@@ -454,9 +473,15 @@ class TopomapIcon(DragBehavior, Image):
     def on_pos(self, instance, value):
         if self.parent:
             # updates connection lines
-            if self.parent.topology.edges(self):
-                for u, v, c in self.parent.topology.edges(self, data=True):
-                    c['obj']._update(u, v)
+            if self.parent.topology.in_edges(self) or self.parent.topology.out_edges(self):
+                edges = tuple(self.parent.topology.in_edges(self, data=True)) + \
+                            tuple(self.parent.topology.out_edges(self, data=True))
+                for u, v, c in edges:
+                    uniq = []
+                    if c not in uniq:
+                        # ensures that connection is moved once
+                        uniq.append(c)
+                        c['obj']._update(u, v)
 
             # allows movement only inside visible part of TopologyMap
             dx, dy = self.parent.pos
@@ -493,7 +518,67 @@ class TopomapConnect(Widget):
         self.conn_color = [0, 0.6, 0, 1]
         self.conn_points = coord
 
-    # updates connection properties after TopomapIcon movement
+    def on_touch_down(self, touch):
+        # TODO: improve collision region
+        #       should be closer to the line and smaller than self.size
+        if self.collide_point(*touch.pos):
+            self.conn_color = [1, 0, 0, 1]
+
+            # removes connections from map and topology graph
+            if getattr(self.parent.active_icon, 'el_type', None) == 'REMOVE':
+                # removes all DiGraph edges with associated TopomapConnect object
+                edges = [(u, v)
+                         for u, v, c in self.parent.topology.edges(data=True)
+                         if c['obj'] is self]
+                for edge in edges:
+                    self.parent.topology.remove_edge(*edge)
+                # removes TopomapConnect object from TopologyMap
+                self.parent.remove_widget(self)
+
+                return True
+
+        return super().on_touch_down(touch)
+
+    def on_touch_up(self, touch):
+        if not self.conn_color == [0, 0.6, 0, 1]:
+            self.conn_color = [0, 0.6, 0, 1]
+        return super().on_touch_up(touch)
+
+    def on_conn_dir(self, inst, value):
+        if value == 'bidir':
+            # adds opposite direction, as connection was unidirectional
+            # assumes one node pair - edge
+            edge = [(u, v)
+                     for u, v, c in self.parent.topology.edges(data=True)
+                     if c['obj'] is self]
+            assert len(edge) == 1, f'For some reason "unidir" connection has {len(edge)} edges'
+            self.parent.topology.add_edge(*edge[0][::-1], obj=self)
+
+        elif value == 'unidir':
+            # removes opposite direction, as connection was bidirectional
+            # assumes two node pairs - edges
+            edges = [(u, v)
+                     for u, v, c in self.parent.topology.edges(data=True)
+                     if c['obj'] is self]
+            assert len(edges) == 2, f'For some reason "bidir" connection has {len(edges)} edges'
+            self.parent.topology.remove_edge(*edges[1])
+
+    # changes direction value
+    def _change_dir(self):
+        self.conn_dir = 'bidir' if self.conn_dir == 'unidir' else 'unidir'
+
+    # swaps connection source, used for unidirectional connection
+    def _change_dir_src(self):
+        if self.conn_dir == 'unidir':
+            # assumes one node pair - edge
+            edge = [(u, v)
+                     for u, v, c in self.parent.topology.edges(data=True)
+                     if c['obj'] is self]
+            assert len(edge) == 1, f'For some reason "unidir" connection has {len(edge)} edges'
+            self.parent.topology.add_edge(*edge[0][::-1], obj=self)
+            self.parent.topology.remove_edge(*edge[0])
+
+    # updates connection position after TopomapIcon movement
     def _update(self, el_A, el_B):
         self.conn_points = (el_A.pos[0] + el_A.size[0]/2,
                             el_A.pos[1] + el_A.size[1]/2,
