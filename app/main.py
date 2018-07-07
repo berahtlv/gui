@@ -392,12 +392,12 @@ class TopologyMap(RelativeLayout):
                 self.topology.has_edge(*self.connectable_el[::-1])
                 ):
             coord = TopomapConnect.get_coord(*self.connectable_el)
-            # adds graphical representation
-            connection = TopomapConnect(coord)
 
+            # adds graphical representation
             # TODO: find the reason of unexpected keyword argument 'canvas'
             #       workaround at least for my installation
-            if platform.system() == 'Linux':
+            connection = TopomapConnect(coord)
+            if platform.system() == 'Windows':
                 self.add_widget(connection)
             else:
                 self.add_widget(connection, canvas='before')
@@ -508,8 +508,8 @@ class TopomapConnect(Widget):
     def __init__(self, coord, **kwargs):
         super().__init__(**kwargs)
 
-        self.size = (abs(coord[0] - coord[2]),
-                     abs(coord[1] - coord[3])
+        self.size = (max(abs(coord[0] - coord[2]), 10),
+                     max(abs(coord[1] - coord[3]), 10)
                      )
         self.pos = (min(coord[0], coord[2]),
                     min(coord[1], coord[3])
@@ -518,24 +518,41 @@ class TopomapConnect(Widget):
         self.conn_points = coord
 
     def on_touch_down(self, touch):
-        # TODO: improve collision region
-        #       should be closer to the line and smaller than self.size
         if self.collide_point(*touch.pos):
-            self.conn_color = [1, 0, 0, 1]
+            # returns True if touch position is closer than distance value
+            # assumes: A and B are poins of connection Line, C is touch point
+            def _very_close(A, B, C=touch.pos, distance=2):
+                Vector = namedtuple('Vector', 'x y')
+                vec_AB = Vector(B[0] - A[0], B[1] - A[1])
+                vec_AC = Vector(C[0] - A[0], C[1] - A[1])
+                len_AB = pow(vec_AB.x**2 + vec_AB.y**2, 1/2)
+                len_AC = pow(vec_AC.x**2 + vec_AC.y**2, 1/2)
+                mult = vec_AB.x * vec_AC.x + vec_AB.y * vec_AC.y
+                cosA = mult / (len_AB * len_AC)
+                sinA = pow(1-cosA**2, 1/2)
 
-            # removes connections from map and topology graph
-            if getattr(self.parent.active_icon, 'el_type', None) == 'REMOVE':
-                # removes all DiGraph edges with associated TopomapConnect object
-                edges = [(u, v)
-                         for u, v, c in self.parent.topology.edges(data=True)
-                         if c['obj'] is self]
-                for edge in edges:
-                    self.parent.topology.remove_edge(*edge)
-                # removes TopomapConnect object from TopologyMap
-                self.parent.remove_widget(self)
+                if (len_AC * sinA) < distance:
+                    return True
+                return False
+
+            pos_A = self.conn_points[:2]
+            pos_B = self.conn_points[-2:]
+            # checks for collision in smaller region
+            if _very_close(pos_A, pos_B):
+                self.conn_color = [1, 0, 0, 1]
+
+                # removes connections from map and topology graph
+                if getattr(self.parent.active_icon, 'el_type', None) == 'REMOVE':
+                    # removes all DiGraph edges with associated TopomapConnect object
+                    edges = [(u, v)
+                             for u, v, c in self.parent.topology.edges(data=True)
+                             if c['obj'] is self]
+                    for edge in edges:
+                        self.parent.topology.remove_edge(*edge)
+                    # removes TopomapConnect object from TopologyMap
+                    self.parent.remove_widget(self)
 
                 return True
-
         return super().on_touch_down(touch)
 
     def on_touch_up(self, touch):
@@ -583,8 +600,8 @@ class TopomapConnect(Widget):
         self.pos = (min(self.conn_points[0], self.conn_points[2]),
                     min(self.conn_points[1], self.conn_points[3])
                     )
-        self.size = (abs(self.conn_points[0] - self.conn_points[2]),
-                     abs(self.conn_points[1] - self.conn_points[3])
+        self.size = (max(abs(self.conn_points[0] - self.conn_points[2]), 10),
+                     max(abs(self.conn_points[1] - self.conn_points[3]), 10)
                      )
 
     # calculates and returns connection Line coordinates based on two involved TopomapIcon objects
