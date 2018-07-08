@@ -1,3 +1,10 @@
+'''
+Network simulator like UI build on Kivy framework.
+'''
+__version__ = '0.001'
+__author__ = 'Roberts Miculens'
+__email__ = 'robertsmg@gmail.com'
+__repo__ = 'github.com/berahtlv/gui'
 
 import kivy
 kivy.require('1.10.0')
@@ -33,7 +40,7 @@ import random, os.path, platform
 from collections import namedtuple
 
 from popups import InfoPopup, OpenProject, SaveProject, QuestionPopup, QuestionMultiPopup
-
+from config import cfg_defaults, cfg_panels
 
 '''
 Application instance with its config
@@ -60,43 +67,14 @@ class Application(App):
         return mainwindow
 
     def build_config(self, config):
-        self_path = os.path.dirname(os.path.realpath(__file__))
-        config.setdefaults('DefaultPath', {'theme_path': self_path+r'/themes/default/',
-                                            'project_path': self_path
-                                            }
-                           )
-        config.setdefaults('ColorTheme', {'color': '0.2 0.2 0.2 1'
-                                           }
-                           )
+        # sets .ini file format
+        for cfg in cfg_defaults:
+            config.setdefaults(*cfg)
 
     def build_settings(self, settings):
-        paneldata = '''[
-                    {"type": "title",
-                     "title": "Default path configuration"
-                     },
-                    {"type": "path",
-                     "title": "Theme folder",
-                     "desc": "Folder containing application icons",
-                     "section": "DefaultPath",
-                     "key": "theme_path"
-                     },
-                    {"type": "path",
-                     "title": "Project folder",
-                     "desc": "Default project folder",
-                     "section": "DefaultPath",
-                     "key": "project_path"
-                     },
-                     {"type": "title",
-                      "title": "Window color theme"
-                      },
-                    {"type": "string",
-                     "title": "Window color",
-                     "desc": "Color of application window expressed in RGBA format, like '0.2 0.2 0.2 1'",
-                     "section": "ColorTheme",
-                     "key": "color"
-                     }
-                    ]'''
-        settings.add_json_panel('Configuration', self.config, data=paneldata)
+        # sets panelview layout
+        for title, paneldata in cfg_panels:
+            settings.add_json_panel(title, self.config, data=paneldata)
 
     def on_config_change(self, config, section, key, value):
         if config is self.config:
@@ -127,7 +105,8 @@ class MainWindow(BoxLayout):
         self._popup.dismiss()
 
     # opens informative popup window with 'OK' button
-    def open_info(self, title='Info', msg='Informative message.'):
+    def open_info(self, title='About', msg=f'GUI application v{__version__}\n\n'+
+                  f'[i][size=11]{__author__}\n{__email__}\n{__repo__}[/size][/i]'):
         content = InfoPopup(_close=self.close_popup, _msg=msg)
         self._popup = Popup(title=title, size_hint=(None,None), size=(350,200),
                             auto_dismiss=False, content=content)
@@ -212,8 +191,7 @@ class Menubar(BoxLayout):
              MenuDescr('View', (FuncDescr('Fullscreen', Window.maximize),
                                 )
                        ),
-             MenuDescr('Help', (FuncDescr('About', lambda: root.open_info('About',
-                                                                          'GUI application v0.001')),
+             MenuDescr('Help', (FuncDescr('About', lambda: root.open_info()),
                                 )
                        )
              )
@@ -282,7 +260,7 @@ class Toolbar(BoxLayout):
              ToolIconDescr('settings_down.png', 'settings.png', 'SETTINGS', 'Application settings',
                            lambda: app.open_settings()),
              ToolIconDescr('info_down.png', 'info.png', 'INFO', 'About application',
-                           lambda: root.open_info('About', 'GUI application v0.001')),
+                           lambda: root.open_info()),
              )
 
     def __init__(self, **kwargs):
@@ -508,8 +486,8 @@ class TopomapConnect(Widget):
     def __init__(self, coord, **kwargs):
         super().__init__(**kwargs)
 
-        self.size = (max(abs(coord[0] - coord[2]), 10),
-                     max(abs(coord[1] - coord[3]), 10)
+        self.size = (max(abs(coord[0] - coord[2]), 4),
+                     max(abs(coord[1] - coord[3]), 4)
                      )
         self.pos = (min(coord[0], coord[2]),
                     min(coord[1], coord[3])
@@ -531,9 +509,7 @@ class TopomapConnect(Widget):
                 cosA = mult / (len_AB * len_AC)
                 sinA = pow(1-cosA**2, 1/2)
 
-                if (len_AC * sinA) < distance:
-                    return True
-                return False
+                return True if (len_AC * sinA) < distance else False
 
             pos_A = self.conn_points[:2]
             pos_B = self.conn_points[-2:]
@@ -600,8 +576,8 @@ class TopomapConnect(Widget):
         self.pos = (min(self.conn_points[0], self.conn_points[2]),
                     min(self.conn_points[1], self.conn_points[3])
                     )
-        self.size = (max(abs(self.conn_points[0] - self.conn_points[2]), 10),
-                     max(abs(self.conn_points[1] - self.conn_points[3]), 10)
+        self.size = (max(abs(self.conn_points[0] - self.conn_points[2]), 4),
+                     max(abs(self.conn_points[1] - self.conn_points[3]), 4)
                      )
 
     # calculates and returns connection Line coordinates based on two involved TopomapIcon objects
