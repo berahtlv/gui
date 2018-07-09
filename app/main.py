@@ -1,5 +1,5 @@
 '''
-Network simulator like UI build on Kivy framework.
+Network simulator like UI build on Kivy framework
 '''
 __version__ = '0.001'
 __author__ = 'Roberts Miculens'
@@ -36,7 +36,7 @@ from kivy.properties import (StringProperty, ObjectProperty, OptionProperty,
 from kivy.core.window import Window
 
 import networkx as nx
-import random, os.path, platform
+import random, platform, os.path
 from collections import namedtuple
 
 from popups import InfoPopup, OpenProject, SaveProject, QuestionPopup, QuestionMultiPopup
@@ -55,7 +55,7 @@ class Application(App):
         global app
         app = self
 
-        self.theme_path = self.config.get('DefaultPath', 'theme_path')
+        self.theme_path = os.path.join(self.config.get('DefaultPath', 'theme_path'), '')
         self.project_path = self.config.get('DefaultPath', 'project_path')
         colortheme = [float(i) for i in self.config.get('ColorTheme', 'color').split()]
         self.colortheme = colortheme if len(colortheme) == 4 else [0.2, 0.2, 0.2, 1] # ensures correct color format
@@ -80,7 +80,7 @@ class Application(App):
         if config is self.config:
             pair = (section, key)
             if pair == ('DefaultPath', 'theme_path'):
-                self.theme_path = value + '/'
+                self.theme_path = os.path.join(value, '')
                 root.open_info(title='Info', msg='Change will take effect only after application restart')
             elif pair == ('DefaultPath', 'project_path'):
                 self.project_path = value
@@ -171,30 +171,31 @@ class MainWindow(BoxLayout):
 
 
 MenuDescr = namedtuple('MenuDescr', 'title func')
-FuncDescr = namedtuple('FuncDescr', 'name clb')
+FuncDescr = namedtuple('FuncDescr', 'name descr clb')
 
 '''
 Main application menubar
 '''
 class Menubar(BoxLayout):
 
-    menus = (MenuDescr('File', (FuncDescr('New', lambda: root.create_new()),
-                                FuncDescr('Open', lambda: root.open_open()),
-                                FuncDescr('Save', lambda: root.open_save()),
-                                FuncDescr('Save As', lambda: root.open_save()),
-                                FuncDescr('Exit', lambda: app.stop())
+    # defines Menubar menu headers and menu items with callback functions
+    menus = (MenuDescr('File', (FuncDescr('New', 'New topology', lambda: root.create_new()),
+                                FuncDescr('Open', 'Open topology', lambda: root.open_open()),
+                                FuncDescr('Save', 'Save topology', lambda: root.open_save()),
+                                FuncDescr('Save As', 'Save As topology', lambda: root.open_save()),
+                                FuncDescr('Exit', 'Close application', lambda: app.stop())
                                 )
                        ),
-             MenuDescr('Edit', (FuncDescr('Settings', lambda: app.open_settings()),
+             MenuDescr('Edit', (FuncDescr('Settings', 'Application settings', lambda: app.open_settings()),
                                 )
                        ),
-             MenuDescr('View', (FuncDescr('Fullscreen', Window.maximize),
+             MenuDescr('View', (FuncDescr('Fullscreen', 'Fullscreen', Window.maximize),
                                 )
                        ),
-             MenuDescr('Help', (FuncDescr('About', lambda: root.open_info()),
+             MenuDescr('Help', (FuncDescr('About', 'About application', lambda: root.open_info()),
                                 )
                        )
-             )
+    )
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -240,28 +241,29 @@ class MenuButton(Button):
         self.bind(on_release=lambda btn: main_btn.drop.select(clb))
 
 
-ToolIconDescr = namedtuple('ToolIconDescr', 'down normal type descr clb')
+ToolIconDescr = namedtuple('ToolIconDescr', 'down normal descr clb')
 
 '''
 Main toolbar for Menubar function shortcuts
 '''
 class Toolbar(BoxLayout):
 
-    icons = (ToolIconDescr('new_down.png', 'new.png' , 'NEW', 'New topology',
+    # defines Toolbar icons and callback functions of those
+    icons = (ToolIconDescr('new_down.png', 'new.png', 'New topology',
                            lambda: root.create_new()),
-             ToolIconDescr('open_down.png', 'open.png' , 'OPEN', 'Open topology',
+             ToolIconDescr('open_down.png', 'open.png', 'Open topology',
                            lambda: root.open_open()),
-             ToolIconDescr('save_down.png', 'save.png', 'SAVE', 'Save topology',
+             ToolIconDescr('save_down.png', 'save.png', 'Save topology',
                            lambda: root.open_save()),
-             ToolIconDescr('saveas_down.png', 'saveas.png', 'SAVE AS', 'Save As topology',
+             ToolIconDescr('saveas_down.png', 'saveas.png', 'Save As topology',
                            lambda: root.open_save()),
-             ToolIconDescr('fullscreen_down.png', 'fullscreen.png', 'FULLSCREEN', 'Fullscreen',
+             ToolIconDescr('fullscreen_down.png', 'fullscreen.png', 'Fullscreen',
                            Window.maximize),
-             ToolIconDescr('settings_down.png', 'settings.png', 'SETTINGS', 'Application settings',
+             ToolIconDescr('settings_down.png', 'settings.png', 'Application settings',
                            lambda: app.open_settings()),
-             ToolIconDescr('info_down.png', 'info.png', 'INFO', 'About application',
+             ToolIconDescr('info_down.png', 'info.png', 'About application',
                            lambda: root.open_info()),
-             )
+    )
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -277,7 +279,7 @@ class ToolbarIcon(ButtonBehavior, Image):
 
     def __init__(self, icon_info, **kwargs):
         super().__init__(**kwargs)
-        self.img_down, self.img, self.type, self.descr, self.clb = icon_info
+        self.img_down, self.img, self.descr, self.clb = icon_info
         self.source = app.theme_path + self.img
         self.bind(on_release=lambda btn: self.clb())
 
@@ -295,15 +297,17 @@ Sidebar with element list
 '''
 class Sidebar(BoxLayout):
 
+    # defines Sidebar Element icons and types of those
     icons_el = (SideIconDescr('roadm_down.png', 'roadm.png', 'ROADM', 'ROADM element'),
                SideIconDescr('amplifier_down.png', 'amplifier.png', 'EDFA', 'Amplifier'),
                SideIconDescr('transceiver_down.png', 'transceiver.png', 'TRX', 'Transciever'),
                SideIconDescr('fiber_down.png', 'fiber.png', 'FIBER', 'Fiber span'),
                SideIconDescr('fused_down.png', 'fused.png', 'FUSED', 'Fuse or physical connection'),
-               )
+    )
+    # defines Sidebar Function icons and types of those
     icons_func = (SideIconDescr('connect_down.png', 'connect.png', 'CONNECTION', 'Connection'),
                  SideIconDescr('remove_down.png', 'remove.png', 'REMOVE', 'Remove element'),
-                 )
+    )
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -509,7 +513,7 @@ class TopomapConnect(Widget):
                 cosA = mult / (len_AB * len_AC)
                 sinA = pow(1-cosA**2, 1/2)
 
-                return True if (len_AC * sinA) < distance else False
+                return True if (len_AC * sinA) <= distance else False
 
             pos_A = self.conn_points[:2]
             pos_B = self.conn_points[-2:]
@@ -663,7 +667,7 @@ class TopomapConnect(Widget):
 Displays some mouseover info and application states
 '''
 class Statusbar(BoxLayout):
-    # TODO: add status events
+    # TODO: add mouseover info and application states
     pass
 
 

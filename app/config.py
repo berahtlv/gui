@@ -7,7 +7,7 @@ import os.path
 app_path = os.path.dirname(os.path.realpath(__file__))
 
 # default .ini configuration file structure
-cfg_defaults = (('DefaultPath', {'theme_path': app_path + r'/themes/default/',
+cfg_defaults = (('DefaultPath', {'theme_path': os.path.join(app_path, 'themes', 'default'),
                                 'project_path': app_path
                                 }
                 ),
