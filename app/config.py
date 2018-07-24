@@ -8,6 +8,7 @@ app_path = os.path.dirname(os.path.realpath(__file__))
 
 # default .ini configuration file structure
 cfg_defaults = (('DefaultPath', {'theme_path': os.path.join(app_path, 'themes', 'default'),
+                                 'json_path': os.path.join(app_path, 'json'),
                                 'project_path': app_path
                                 }
                 ),
@@ -24,11 +25,17 @@ cfg_panels = (('Configuration',
                      },
                     {"type": "path",
                      "title": "Theme folder",
-                     "desc": "Folder containing application icons",
+                     "desc": "Contains application interface icons",
                      "section": "DefaultPath",
                      "key": "theme_path"
                      },
                     {"type": "path",
+                     "title": "JSON files folder",
+                     "desc": "Contains equipment and other configurations in json format",
+                     "section": "DefaultPath",
+                     "key": "json_path"
+                    },
+                     {"type": "path",
                      "title": "Project folder",
                      "desc": "Default project folder",
                      "section": "DefaultPath",

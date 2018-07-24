@@ -1,7 +1,7 @@
 '''
 Network simulator like UI build on Kivy framework
 '''
-__version__ = '0.001'
+__version__ = '0.0.1'
 __author__ = 'Roberts Miculens'
 __email__ = 'robertsmg@gmail.com'
 __repo__ = 'github.com/berahtlv/gui'
@@ -31,31 +31,36 @@ from kivy.uix.dropdown import DropDown
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.settings import SettingsWithSidebar
-from kivy.properties import (StringProperty, ObjectProperty, OptionProperty,
-                             ListProperty, NumericProperty)
+from kivy.uix.tabbedpanel import TabbedPanel
+from kivy.properties import (StringProperty, ObjectProperty, ListProperty,
+                             NumericProperty, ReferenceListProperty)
 from kivy.core.window import Window
 
 import networkx as nx
-import random, platform, os.path
+import platform, os.path
 from collections import namedtuple
 
 from popups import InfoPopup, OpenProject, SaveProject, QuestionPopup, QuestionMultiPopup
 from config import cfg_defaults, cfg_panels
+from elements import TopomapConnect, GRoadm, GEdfa, GTransceiver, GFiber, GFused
+
 
 '''
 Application instance with its config
 '''
 class Application(App):
 
-    theme_path = StringProperty('')
-    project_path = StringProperty('')
-    colortheme = ListProperty('')
+    theme_path = StringProperty()
+    json_path = StringProperty()
+    project_path = StringProperty()
+    colortheme = ListProperty()
 
     def build(self):
         global app
         app = self
 
         self.theme_path = os.path.join(self.config.get('DefaultPath', 'theme_path'), '')
+        self.json_path = os.path.join(self.config.get('DefaultPath', 'json_path'), '')
         self.project_path = self.config.get('DefaultPath', 'project_path')
         colortheme = [float(i) for i in self.config.get('ColorTheme', 'color').split()]
         self.colortheme = colortheme if len(colortheme) == 4 else [0.2, 0.2, 0.2, 1] # ensures correct color format
@@ -82,6 +87,8 @@ class Application(App):
             if pair == ('DefaultPath', 'theme_path'):
                 self.theme_path = os.path.join(value, '')
                 root.open_info(title='Info', msg='Change will take effect only after application restart')
+            elif pair == ('DefaultPath', 'json_path'):
+                self.json_path = os.path.join(value, '')
             elif pair == ('DefaultPath', 'project_path'):
                 self.project_path = value
             elif pair == ('ColorTheme', 'color'):
@@ -279,15 +286,18 @@ class ToolbarIcon(ButtonBehavior, Image):
 
     def __init__(self, icon_info, **kwargs):
         super().__init__(**kwargs)
-        self.img_down, self.img, self.descr, self.clb = icon_info
-        self.source = app.theme_path + self.img
+        self.img_down = app.theme_path + icon_info.down
+        self.img = app.theme_path + icon_info.normal
+        self.descr = icon_info.descr
+        self.clb = icon_info.clb
+        self.source = self.img
         self.bind(on_release=lambda btn: self.clb())
 
-    def on_state(self, widget, value):
+    def on_state(self, instance, value):
         if value == 'down':
-            self.source = app.theme_path + self.img_down
+            self.source = self.img_down
         else:
-            self.source = app.theme_path + self.img
+            self.source = self.img
 
 
 SideIconDescr = namedtuple('SideIconDescr', 'down normal type descr')
@@ -298,11 +308,11 @@ Sidebar with element list
 class Sidebar(BoxLayout):
 
     # defines Sidebar Element icons and types of those
-    icons_el = (SideIconDescr('roadm_down.png', 'roadm.png', 'ROADM', 'ROADM element'),
-               SideIconDescr('amplifier_down.png', 'amplifier.png', 'EDFA', 'Amplifier'),
-               SideIconDescr('transceiver_down.png', 'transceiver.png', 'TRX', 'Transciever'),
-               SideIconDescr('fiber_down.png', 'fiber.png', 'FIBER', 'Fiber span'),
-               SideIconDescr('fused_down.png', 'fused.png', 'FUSED', 'Fuse or physical connection'),
+    icons_el = (SideIconDescr('roadm_down.png', 'roadm.png', 'GRoadm', 'ROADM element'),
+               SideIconDescr('amplifier_down.png', 'amplifier.png', 'GEdfa', 'Amplifier'),
+               SideIconDescr('transceiver_down.png', 'transceiver.png', 'GTransceiver', 'Transceiver'),
+               SideIconDescr('fiber_down.png', 'fiber.png', 'GFiber', 'Fiber span'),
+               SideIconDescr('fused_down.png', 'fused.png', 'GFused', 'Fuse or physical connection'),
     )
     # defines Sidebar Function icons and types of those
     icons_func = (SideIconDescr('connect_down.png', 'connect.png', 'CONNECTION', 'Connection'),
@@ -328,15 +338,18 @@ class SidebarIcon(ToggleButtonBehavior, Image):
 
     def __init__(self, icon_info, **kwargs):
         super().__init__(**kwargs)
-        self.img_down, self.img, self.el_type, self.el_descr = icon_info
-        self.source = app.theme_path + self.img
+        self.img_down = app.theme_path + icon_info.down
+        self.img = app.theme_path + icon_info.normal
+        self.el_type = icon_info.type
+        self.el_descr = icon_info.descr
+        self.source = self.img
 
-    def on_state(self, widget, value):
+    def on_state(self, instance, value):
         if value == 'down':
-            self.source = app.theme_path + self.img_down
+            self.source = self.img_down
             root.ids['topomap'].active_icon = self
         else:
-            self.source = app.theme_path + self.img
+            self.source = self.img
             # drops connectable element list and active icon when unselected
             root.ids['topomap'].active_icon = None
             root.ids['topomap'].connectable_el = []
@@ -347,17 +360,18 @@ Topology map with draggable elements
 '''
 class TopologyMap(RelativeLayout):
 
-    active_icon = ObjectProperty(None, allownone=True)
-    connectable_el = ListProperty([])
-    topology = ObjectProperty(nx.DiGraph())
+    active_icon = ObjectProperty(None, allownone=True) # active sidebar icon
+    connectable_el = ListProperty() # list to store elements for connection
+    topology = ObjectProperty(nx.DiGraph()) # graphical representation topology
+    selected = ObjectProperty() # topology map selected element, for params
 
     def on_touch_down(self, touch):
         if self.active_icon and self.collide_point(*touch.pos):
             if not self.active_icon.el_type in ['REMOVE', 'CONNECTION']:
-                #TODO: add subclassed TopomapIcon elements
-                new_element = TopomapIcon(self.active_icon,
-                                          pos=self.to_local(*(i - 25 for i in touch.pos))
-                                          )
+                cls = globals()[self.active_icon.el_type]
+                new_element = cls(self.active_icon,
+                                  pos=self.to_local(*(i - 25 for i in touch.pos))
+                                  )
                 self.topology.add_node(new_element)
                 self.add_widget(new_element)
 
@@ -390,277 +404,67 @@ class TopologyMap(RelativeLayout):
         # unselects sidebar icon, active_icon and connectable_el are dropped in on_state event
         self.active_icon.state = 'normal'
 
+    def on_selected(self, instance, value):
+        # updates BasicTabContent
+        root.ids['basictab'].content._update(value)
 
-'''
-Draggable element
-'''
-class TopomapIcon(DragBehavior, Image):
+        # changes 'parameters' TabContent
+        if isinstance(value, GRoadm):
+            root.ids['paramtab'].content = RoadmTabContent()
+        elif isinstance(value, GFiber):
+            root.ids['paramtab'].content = FiberTabContent()
 
-    el_type = StringProperty('')
-    el_id = StringProperty('')
-    el_side = NumericProperty(50) # size of square side, code assumes squared icon
-
-    def __init__(self, active_obj, **kwargs):
-        super().__init__(**kwargs)
-        self.img = active_obj.img
-        self.img_down = active_obj.img_down
-        self.el_type = active_obj.el_type
-        self.source = app.theme_path + self.img
-        self.el_id = 'ID'+''.join((str(random.randrange(0,9)) for i in range(3)))
-
-    def on_touch_down(self, touch):
-        if self.collide_point(*touch.pos):
-            self.source = app.theme_path + self.img_down
-
-            # removes element and all its connections from map and topology graph
-            if getattr(self.parent.active_icon, 'el_type', None) == 'REMOVE':
-                # removes related TopomapConnect objects from TopologyMap
-                if self.parent.topology.in_edges(self) or self.parent.topology.out_edges(self):
-                    edges = tuple(self.parent.topology.in_edges(self, data=True)) + \
-                                tuple(self.parent.topology.out_edges(self, data=True))
-                    for u, v, c in edges:
-                        uniq = []
-                        if c not in uniq:
-                            # ensures that connection is removed once
-                            uniq.append(c)
-                            self.parent.remove_widget(c['obj'])
-
-                # related DiGraph edges are removed automatically
-                self.parent.topology.remove_node(self)
-                self.parent.remove_widget(self)
-
-                return True
-
-            # create connection between topomap icons
-            if getattr(self.parent.active_icon, 'el_type', None) == 'CONNECTION':
-                # excludes self loops
-                if not self in self.parent.connectable_el:
-                    self.parent.connectable_el.append(self)
-
-                if len(self.parent.connectable_el) == 2:
-                    self.parent._connect_el()
-
-                return True
-
-        return super().on_touch_down(touch)
-
-    def on_touch_up(self, touch):
-        # w/o collision, mouse can be released outside of collision region
-        if not self.source == app.theme_path + self.img:
-            self.source = app.theme_path + self.img
-
-        return super().on_touch_up(touch)
-
-    def on_pos(self, instance, value):
-        if self.parent:
-            # updates connection lines
-            if self.parent.topology.in_edges(self) or self.parent.topology.out_edges(self):
-                edges = tuple(self.parent.topology.in_edges(self, data=True)) + \
-                            tuple(self.parent.topology.out_edges(self, data=True))
-                for u, v, c in edges:
-                    uniq = []
-                    if c not in uniq:
-                        # ensures that connection is moved once
-                        uniq.append(c)
-                        c['obj']._update(u, v)
-
-            # allows movement only inside visible part of TopologyMap
-            dx, dy = self.parent.pos
-            # X axis
-            if (self.x + dx) < self.parent.x:
-                self.x = self.parent.x - dx
-            elif (self.x + self.width + dx) > (self.parent.x + self.parent.width):
-                self.x = (self.parent.x + self.parent.width) - self.width - dx
-            # Y axis
-            if (self.y + dy) < self.parent.y:
-                self.y = self.parent.y - dy
-            elif (self.y + self.height + dy) > (self.parent.y + self.parent.height):
-                self.y = (self.parent.y + self.parent.height) - self.height - dy
+        # refreshes 'parameters' TabContent
+        selected_tab = root.ids['tabspanel'].current_tab
+        if selected_tab.text == 'Parameters':
+            root.ids['tabspanel'].switch_to(selected_tab)
 
 
 '''
-Connection of draggable elements
+Tab content to display basic element info
 '''
-class TopomapConnect(Widget):
+class BasicTabContent(BoxLayout):
 
-    conn_dir = OptionProperty('bidir', options=['bidir', 'unidir'])
-    conn_color = ListProperty([])
-    conn_points = ListProperty([])
+    # TODO: clear form values after Element deletion or New topology selection
 
-    def __init__(self, coord, **kwargs):
-        super().__init__(**kwargs)
+    # updates form info when element is selected
+    def _update(self, element):
+        for paramlabel in self.children:
+            value = getattr(element, paramlabel.lparam)
+            paramlabel.lvalue = value if isinstance(value, str) else str(value)
 
-        self.size = (max(abs(coord[0] - coord[2]), 4),
-                     max(abs(coord[1] - coord[3]), 4)
-                     )
-        self.pos = (min(coord[0], coord[2]),
-                    min(coord[1], coord[3])
-                    )
-        self.conn_color = [0, 0.6, 0, 1]
-        self.conn_points = coord
+    # updates element info when form value change occurs
+    def _update_el(self, param_name, param_type, value):
+        element = root.ids['topomap'].selected
+        # updates element attributes
+        if element:
+            setattr(element, param_name, value if not param_type == 'float' else float(value))
 
-    def on_touch_down(self, touch):
-        if self.collide_point(*touch.pos):
-            # returns True if touch position is closer than distance value
-            # assumes: A and B are poins of connection Line, C is touch point
-            def _very_close(A, B, C=touch.pos, distance=2):
-                Vector = namedtuple('Vector', 'x y')
-                vec_AB = Vector(B[0] - A[0], B[1] - A[1])
-                vec_AC = Vector(C[0] - A[0], C[1] - A[1])
-                len_AB = pow(vec_AB.x**2 + vec_AB.y**2, 1/2)
-                len_AC = pow(vec_AC.x**2 + vec_AC.y**2, 1/2)
-                mult = vec_AB.x * vec_AC.x + vec_AB.y * vec_AC.y
-                cosA = mult / (len_AB * len_AC)
-                sinA = pow(1-cosA**2, 1/2)
+        # updates form info
+        for paramlabel in self.children:
+            if paramlabel.lparam == param_name:
+                paramlabel.lvalue = value
+                break
 
-                return True if (len_AC * sinA) <= distance else False
 
-            pos_A = self.conn_points[:2]
-            pos_B = self.conn_points[-2:]
-            # checks for collision in smaller region
-            if _very_close(pos_A, pos_B):
-                self.conn_color = [1, 0, 0, 1]
+'''
+Tab content to display Roadm element parameters
+'''
+class RoadmTabContent(BoxLayout):
 
-                # removes connections from map and topology graph
-                if getattr(self.parent.active_icon, 'el_type', None) == 'REMOVE':
-                    # removes all DiGraph edges with associated TopomapConnect object
-                    edges = [(u, v)
-                             for u, v, c in self.parent.topology.edges(data=True)
-                             if c['obj'] is self]
-                    for edge in edges:
-                        self.parent.topology.remove_edge(*edge)
-                    # removes TopomapConnect object from TopologyMap
-                    self.parent.remove_widget(self)
+    # updates element info when form value change occurs
+    def _update_el(self, param_name, param_type, value):
+        pass
 
-                return True
-        return super().on_touch_down(touch)
 
-    def on_touch_up(self, touch):
-        if not self.conn_color == [0, 0.6, 0, 1]:
-            self.conn_color = [0, 0.6, 0, 1]
-        return super().on_touch_up(touch)
+'''
+Tab content to display Fiber element parameters
+'''
+class FiberTabContent(BoxLayout):
 
-    def on_conn_dir(self, inst, value):
-        if value == 'bidir':
-            # adds opposite direction, as connection was unidirectional
-            # assumes one node pair - edge
-            edge = [(u, v)
-                     for u, v, c in self.parent.topology.edges(data=True)
-                     if c['obj'] is self]
-            assert len(edge) == 1, f'For some reason "unidir" connection has {len(edge)} edges'
-            self.parent.topology.add_edge(*edge[0][::-1], obj=self)
-
-        elif value == 'unidir':
-            # removes opposite direction, as connection was bidirectional
-            # assumes two node pairs - edges
-            edges = [(u, v)
-                     for u, v, c in self.parent.topology.edges(data=True)
-                     if c['obj'] is self]
-            assert len(edges) == 2, f'For some reason "bidir" connection has {len(edges)} edges'
-            self.parent.topology.remove_edge(*edges[1])
-
-    # changes direction value
-    def _change_dir(self):
-        self.conn_dir = 'bidir' if self.conn_dir == 'unidir' else 'unidir'
-
-    # swaps connection source, used for unidirectional connection
-    def _change_dir_src(self):
-        if self.conn_dir == 'unidir':
-            # assumes one node pair - edge
-            edge = [(u, v)
-                     for u, v, c in self.parent.topology.edges(data=True)
-                     if c['obj'] is self]
-            assert len(edge) == 1, f'For some reason "unidir" connection has {len(edge)} edges'
-            self.parent.topology.add_edge(*edge[0][::-1], obj=self)
-            self.parent.topology.remove_edge(*edge[0])
-
-    # updates connection position after TopomapIcon movement
-    def _update(self, A, B):
-        self.conn_points = self.get_coord(A, B)
-        self.pos = (min(self.conn_points[0], self.conn_points[2]),
-                    min(self.conn_points[1], self.conn_points[3])
-                    )
-        self.size = (max(abs(self.conn_points[0] - self.conn_points[2]), 4),
-                     max(abs(self.conn_points[1] - self.conn_points[3]), 4)
-                     )
-
-    # calculates and returns connection Line coordinates based on two involved TopomapIcon objects
-    @staticmethod
-    def get_coord(A, B):
-        if isinstance(A, TopomapIcon) and isinstance(B, TopomapIcon):
-            LinePoint = namedtuple('LinePoint', 'x y')
-            # based on calculation from/to center of the icon
-            dx = dy = A.el_side / 2
-            pos_A = LinePoint(A.x + dx, A.y + dy)
-            pos_B = LinePoint(B.x + dx, B.y + dy)
-
-            # if Line is parallel to Y axis
-            if pos_A.x == pos_B.x:
-                # A below B
-                if pos_A.y < pos_A.y + dy <= pos_B.y:
-                    pos_A = pos_A._replace(y=pos_A.y + dy)
-                    pos_B = pos_B._replace(y=pos_B.y - dy)
-
-                # A above B
-                elif pos_A.y > pos_A.y - dy >= pos_B.y:
-                    pos_A = pos_A._replace(y=pos_A.y - dy)
-                    pos_B = pos_B._replace(y=pos_B.y + dy)
-
-                return pos_A + pos_B
-
-            # if Line is parallel to X axis
-            elif pos_A.y == pos_B.y:
-                # B from right side of A
-                if pos_A.x < pos_A.x + dx <= pos_B.x:
-                    pos_A = pos_A._replace(x=pos_A.x + dx)
-                    pos_B = pos_B._replace(x=pos_B.x - dx)
-
-                # B from left side of A
-                elif pos_B.x <= pos_A.x - dx < pos_A.x:
-                    pos_A = pos_A._replace(x=pos_A.x - dx)
-                    pos_B = pos_B._replace(x=pos_B.x + dx)
-
-                return pos_A + pos_B
-
-            # Line not parallel to X or Y axis (using y = ax + c)
-            else:
-                a = (pos_A.y - pos_B.y) / (pos_A.x - pos_B.x)
-                c = pos_A.y - a * pos_A.x
-
-                # finding the direction of the line based on slope coefficient
-                if (1 >= a > 0) or (0 > a >= -1):
-                    # B is from left side
-                    if pos_A.x < pos_A.x + dx <= pos_B.x:
-                        y = a * (pos_A.x + dx) + c
-                        pos_A = pos_A._replace(x=pos_A.x + dx, y=y)
-                        y = a * (pos_B.x - dx) + c
-                        pos_B = pos_B._replace(x=pos_B.x - dx, y=y)
-
-                    # B is from right side
-                    elif pos_B.x <= pos_A.x - dx < pos_A.x:
-                        y = a * (pos_A.x - dx) + c
-                        pos_A = pos_A._replace(x=pos_A.x - dx, y=y)
-                        y = a * (pos_B.x + dx) + c
-                        pos_B = pos_B._replace(x=pos_B.x + dx, y=y)
-
-                    return pos_A + pos_B
-
-                elif a > 1 or a < -1:
-                    # B is above
-                    if pos_A.y < pos_A.y + dy <= pos_B.y:
-                        x = (pos_A.y + dy - c) / a
-                        pos_A = pos_A._replace(x=x, y=pos_A.y + dy)
-                        x = (pos_B.y - dy - c) / a
-                        pos_B = pos_B._replace(x=x, y=pos_B.y - dy)
-
-                    # B is below
-                    elif pos_A.y > pos_A.y - dy >= pos_B.y:
-                        x = (pos_A.y - dy - c) / a
-                        pos_A = pos_A._replace(x=x, y=pos_A.y - dy)
-                        x = (pos_B.y + dy - c) / a
-                        pos_B = pos_B._replace(x=x, y=pos_B.y + dy)
-
-                    return pos_A + pos_B
+    # updates element info when form value change occurs
+    def _update_el(self, param_name, param_type, value):
+        pass
 
 
 '''

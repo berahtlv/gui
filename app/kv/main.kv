@@ -97,11 +97,12 @@ MainWindow:
             Splitter:
                 size_hint: 1, None
                 sizable_from: 'top'
-                max_size: 250
-                min_size: 150
-                strip_size: 7
+                max_size: 300
+                min_size: 0
+                strip_size: 8
 
                 TabbedPanel:
+                    id: tabspanel
                     do_default_tab: False
                     tab_height: 20
                     tab_width: 100
@@ -110,37 +111,14 @@ MainWindow:
                         id: basictab
                         text: 'Basic Info'
 
-                        GridLayout:
-                            cols: 2
-                            rows: 2
-
-                            Label:
-                                text: 'ID'
-                            TextInput:
-                                multiline: False
-
-                            Label:
-                                text: 'Location'
-                            TextInput:
-                                multiline: False
+                        BasicTabContent:
+                            # Here is list of parameters
 
                     TabbedPanelItem:
-                        id: optiontab
+                        id: paramtab
                         text: 'Parameters'
 
-                        GridLayout:
-                            cols: 2
-                            rows: 2
-
-                            Label:
-                                text: 'Length'
-                            TextInput:
-                                multiline: False
-
-                            Label:
-                                text: 'Loss'
-                            TextInput:
-                                multiline: False
+                        # Here is ParamTabContent
 
     Statusbar:
         id: statusbar
@@ -225,3 +203,83 @@ MainWindow:
     size_hint: None, None
     height: toolbar_height - 2 * toolbar_padding
     width: toolbar_height - 2 * toolbar_padding
+
+<ParamLabel@BoxLayout>:
+    orientation: 'horizontal'
+    ltext: ''
+    lvalue: ''
+    lvalue_type: None
+    lparam: ''
+
+    Label:
+        id: label
+        text: root.ltext
+        font_size: 14
+    TextInput:
+        input_filter: root.lvalue_type
+        text: root.lvalue
+        multiline: False
+        font_size: 14
+        on_text: root.parent._update_el(root.lparam, root.lvalue_type, self.text)
+
+<RoadmTabContent>:
+    orientation: 'vertical'
+    size_hint: None, None
+    size: 300, len(self.children) * 29
+
+    ParamLabel:
+        ltext: 'Loss, dB'
+        lvalue_type: 'float'
+        lparam: 'loss'
+
+<FiberTabContent>:
+    orientation: 'vertical'
+    size_hint: None, None
+    size: 300, len(self.children) * 29
+
+    ParamLabel:
+        ltext: 'Length, km'
+        lvalue_type: 'float'
+        lparam: 'length'
+
+    ParamLabel:
+        ltext: 'Loss, dB/km'
+        lvalue_type: 'float'
+        lparam: 'loss_coef'
+
+    ParamLabel:
+        ltext: 'Dispersion, ps/km'
+        lvalue_type: 'float'
+        lparam: 'dispersion'
+
+    ParamLabel:
+        ltext: 'Gamma'
+        lvalue_type: 'float'
+        lparam: 'gamma'
+    
+<BasicTabContent>:
+    orientation: 'vertical'
+    size_hint: None, None
+    size: 300, len(self.children) * 29
+
+    ParamLabel:
+        ltext: 'Element ID'
+        lparam: 'el_id'
+
+    ParamLabel:
+        ltext: 'Site name'
+        lparam: 'el_site'
+
+    ParamLabel:
+        ltext: 'Region'
+        lparam: 'el_region'
+
+    ParamLabel:
+        ltext: 'Latitude'
+        lvalue_type: 'float'
+        lparam: 'el_latitude'
+
+    ParamLabel:
+        ltext: 'Longitude'
+        lvalue_type: 'float'
+        lparam: 'el_longitude'
