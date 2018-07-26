@@ -21,6 +21,7 @@ from kivy.app import App
 from kivy.lang import Builder
 from kivy.uix.button import Button
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.gridlayout import GridLayout
 from kivy.uix.relativelayout import RelativeLayout
 from kivy.uix.behaviors.togglebutton import ToggleButtonBehavior
 from kivy.uix.behaviors.button import ButtonBehavior
@@ -32,9 +33,11 @@ from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.settings import SettingsWithSidebar
 from kivy.uix.tabbedpanel import TabbedPanel
+from kivy.uix.spinner import Spinner
 from kivy.properties import (StringProperty, ObjectProperty, ListProperty,
                              NumericProperty, ReferenceListProperty)
 from kivy.core.window import Window
+from kivy.factory import Factory
 
 import networkx as nx
 import platform, os.path
@@ -86,7 +89,7 @@ class Application(App):
             pair = (section, key)
             if pair == ('DefaultPath', 'theme_path'):
                 self.theme_path = os.path.join(value, '')
-                root.open_info(title='Info', msg='Change will take effect only after application restart')
+                app.root.open_info(title='Info', msg='Change will take effect only after application restart')
             elif pair == ('DefaultPath', 'json_path'):
                 self.json_path = os.path.join(value, '')
             elif pair == ('DefaultPath', 'project_path'):
@@ -104,8 +107,7 @@ class MainWindow(BoxLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         # workaround to get all MainWindow ids
-        global root
-        root = self
+        app.root = self
 
     # closes popup window
     def close_popup(self):
@@ -136,11 +138,17 @@ class MainWindow(BoxLayout):
 
     # clears topology for new Project
     def create_new(self):
-        if root.ids['topomap'].topology:
+        if app.root.ids['topomap'].topology:
             #TODO: add test - do topology already saved?
             def _clear_topology():
-                root.ids['topomap'].topology.clear()
-                root.ids['topomap'].clear_widgets()
+                # clears topology and graphical representation
+                app.root.ids['topomap'].topology.clear()
+                app.root.ids['topomap'].clear_widgets()
+                # clears TabbedPanel tabs Content
+                app.root.ids['paramtab'].content = None
+                app.root.ids['topomap']._refresh_paramtab()
+                app.root.ids['basictabcontent']._clear_form()
+                # closes Popup
                 self._popup.dismiss()
             def _open_save():
                 self._popup.dismiss()
@@ -186,10 +194,10 @@ Main application menubar
 class Menubar(BoxLayout):
 
     # defines Menubar menu headers and menu items with callback functions
-    menus = (MenuDescr('File', (FuncDescr('New', 'New topology', lambda: root.create_new()),
-                                FuncDescr('Open', 'Open topology', lambda: root.open_open()),
-                                FuncDescr('Save', 'Save topology', lambda: root.open_save()),
-                                FuncDescr('Save As', 'Save As topology', lambda: root.open_save()),
+    menus = (MenuDescr('File', (FuncDescr('New', 'New topology', lambda: app.root.create_new()),
+                                FuncDescr('Open', 'Open topology', lambda: app.root.open_open()),
+                                FuncDescr('Save', 'Save topology', lambda: app.root.open_save()),
+                                FuncDescr('Save As', 'Save As topology', lambda: app.root.open_save()),
                                 FuncDescr('Exit', 'Close application', lambda: app.stop())
                                 )
                        ),
@@ -199,7 +207,7 @@ class Menubar(BoxLayout):
              MenuDescr('View', (FuncDescr('Fullscreen', 'Fullscreen', Window.maximize),
                                 )
                        ),
-             MenuDescr('Help', (FuncDescr('About', 'About application', lambda: root.open_info()),
+             MenuDescr('Help', (FuncDescr('About', 'About application', lambda: app.root.open_info()),
                                 )
                        )
     )
@@ -257,19 +265,19 @@ class Toolbar(BoxLayout):
 
     # defines Toolbar icons and callback functions of those
     icons = (ToolIconDescr('new_down.png', 'new.png', 'New topology',
-                           lambda: root.create_new()),
+                           lambda: app.root.create_new()),
              ToolIconDescr('open_down.png', 'open.png', 'Open topology',
-                           lambda: root.open_open()),
+                           lambda: app.root.open_open()),
              ToolIconDescr('save_down.png', 'save.png', 'Save topology',
-                           lambda: root.open_save()),
+                           lambda: app.root.open_save()),
              ToolIconDescr('saveas_down.png', 'saveas.png', 'Save As topology',
-                           lambda: root.open_save()),
+                           lambda: app.root.open_save()),
              ToolIconDescr('fullscreen_down.png', 'fullscreen.png', 'Fullscreen',
                            Window.maximize),
              ToolIconDescr('settings_down.png', 'settings.png', 'Application settings',
                            lambda: app.open_settings()),
              ToolIconDescr('info_down.png', 'info.png', 'About application',
-                           lambda: root.open_info()),
+                           lambda: app.root.open_info()),
     )
 
     def __init__(self, **kwargs):
@@ -347,14 +355,16 @@ class SidebarIcon(ToggleButtonBehavior, Image):
     def on_state(self, instance, value):
         if value == 'down':
             self.source = self.img_down
-            root.ids['topomap'].active_icon = self
+            app.root.ids['topomap'].active_icon = self
         else:
             self.source = self.img
             # drops connectable element list and active icon when unselected
-            root.ids['topomap'].active_icon = None
-            root.ids['topomap'].connectable_el = []
+            app.root.ids['topomap'].active_icon = None
+            app.root.ids['topomap'].connectable_el = []
 
 
+# TODO: solve ScrollView bug 'RecursionError: maximum recursion depth exceeded in comparison'
+#       sometimes arises when Splitter size is changed
 '''
 Topology map with draggable elements
 '''
@@ -406,65 +416,227 @@ class TopologyMap(RelativeLayout):
 
     def on_selected(self, instance, value):
         # updates BasicTabContent
-        root.ids['basictab'].content._update(value)
+        app.root.ids['basictab'].content._update(value)
 
         # changes 'parameters' TabContent
         if isinstance(value, GRoadm):
-            root.ids['paramtab'].content = RoadmTabContent()
+            param_content = RoadmTabContent()
+            app.root.ids['paramtab'].content = param_content
         elif isinstance(value, GFiber):
-            root.ids['paramtab'].content = FiberTabContent()
+            param_content = FiberTabContent()
+            app.root.ids['paramtab'].content = param_content
+        elif isinstance(value, GFused):
+            param_content = FusedTabContent()
+            app.root.ids['paramtab'].content = param_content
+        elif isinstance(value, GEdfa):
+            param_content = EdfaTabContent()
+            app.root.ids['paramtab'].content = param_content
+        elif isinstance(value, GTransceiver):
+            param_content = TrxTabContent()
+            app.root.ids['paramtab'].content = param_content
+        param_content._update(value)
 
-        # refreshes 'parameters' TabContent
-        selected_tab = root.ids['tabspanel'].current_tab
+        self._refresh_paramtab()
+
+    # refreshes 'parameters' TabContent
+    def _refresh_paramtab(self):
+        selected_tab = app.root.ids['tabspanel'].current_tab
         if selected_tab.text == 'Parameters':
-            root.ids['tabspanel'].switch_to(selected_tab)
+            app.root.ids['tabspanel'].switch_to(selected_tab)
 
 
 '''
 Tab content to display basic element info
 '''
-class BasicTabContent(BoxLayout):
-
-    # TODO: clear form values after Element deletion or New topology selection
+class BasicTabContent(GridLayout):
 
     # updates form info when element is selected
     def _update(self, element):
-        for paramlabel in self.children:
-            value = getattr(element, paramlabel.lparam)
-            paramlabel.lvalue = value if isinstance(value, str) else str(value)
+        for ptinput in (i for i in self.children
+                        if isinstance(i, Factory.PTInput) and not i.readonly):
+            value = getattr(element, ptinput.param)
+            ptinput.text = value if isinstance(value, str) else str(value)
 
     # updates element info when form value change occurs
-    def _update_el(self, param_name, param_type, value):
-        element = root.ids['topomap'].selected
-        # updates element attributes
-        if element:
-            setattr(element, param_name, value if not param_type == 'float' else float(value))
+    def _update_el(self, param_name, param_type, readonly, value):
+        if not readonly:
+            element = app.root.ids['topomap'].selected
+            # updates element attributes
+            if element and not getattr(element, param_name) == value:
+                setattr(element, param_name, value if not param_type == 'float' else float(value))
 
-        # updates form info
-        for paramlabel in self.children:
-            if paramlabel.lparam == param_name:
-                paramlabel.lvalue = value
-                break
+    # clears form values
+    def _clear_form(self):
+        for ptinput in (i for i in self.children if isinstance(i, Factory.PTInput)):
+            ptinput.text = '' if not ptinput.input_filter == 'float' else '0'
 
 
 '''
 Tab content to display Roadm element parameters
 '''
-class RoadmTabContent(BoxLayout):
+class RoadmTabContent(GridLayout):
+
+    # updates form info when element is selected
+    def _update(self, element):
+        for ptinput in (i for i in self.children
+                        if isinstance(i, Factory.PTInput) and not i.readonly):
+            value = getattr(element, ptinput.param)
+            ptinput.text = value if isinstance(value, str) else str(value)
 
     # updates element info when form value change occurs
-    def _update_el(self, param_name, param_type, value):
-        pass
+    def _update_el(self, param_name, param_type, readonly, value):
+        if not readonly:
+            element = app.root.ids['topomap'].selected
+            # updates element attributes
+            if element and not getattr(element, param_name) == value:
+                setattr(element, param_name, value if not param_type == 'float' else float(value))
+
+
+'''
+Tab content to display Fused element parameters
+'''
+class FusedTabContent(GridLayout):
+
+    # updates form info when element is selected
+    def _update(self, element):
+        for ptinput in (i for i in self.children
+                        if isinstance(i, Factory.PTInput) and not i.readonly):
+            value = getattr(element, ptinput.param)
+            ptinput.text = value if isinstance(value, str) else str(value)
+
+    # updates element info when form value change occurs
+    def _update_el(self, param_name, param_type, readonly, value):
+        if not readonly:
+            element = app.root.ids['topomap'].selected
+            # updates element attributes
+            if element and not getattr(element, param_name) == value:
+                setattr(element, param_name, value if not param_type == 'float' else float(value))
 
 
 '''
 Tab content to display Fiber element parameters
 '''
-class FiberTabContent(BoxLayout):
+class FiberTabContent(GridLayout):
+
+    # updates form info when element is selected
+    def _update(self, element):
+        for child in self.children[::-1]:
+            if isinstance(child, Factory.PTInput) and not child.readonly:
+                value = getattr(element, child.param)
+                child.text = value if isinstance(value, str) else str(value)
+            elif isinstance(child, Factory.PSpinner) and child.param == 'type_variety':
+                value = getattr(element, child.param)
+                if value != '':
+                    child.text = value
 
     # updates element info when form value change occurs
-    def _update_el(self, param_name, param_type, value):
-        pass
+    def _update_el(self, param_name, param_type, readonly, value):
+        if not readonly:
+            element = app.root.ids['topomap'].selected
+            # updates element attributes
+            if element and not getattr(element, param_name) == value:
+                if param_name == 'type_variety' and value in ('-- select --', ''):
+                    setattr(element, param_name, '')
+                else:
+                    setattr(element, param_name, value if not param_type == 'float' else float(value))
+
+    # displays equipment values from equipment.json
+    def _update_eqpt(self, variety, fiber_disp, fiber_gamma):
+        if not variety in ('-- select --', ''):
+            fiber_disp.text = str(self.type_varieties[variety].dispersion)
+            fiber_gamma.text = str(self.type_varieties[variety].gamma)
+        else:
+            fiber_disp.text = ''
+            fiber_gamma.text = ''
+
+
+'''
+Tab content to display Edfa element parameters
+'''
+class EdfaTabContent(GridLayout):
+
+    # updates form info when element is selected
+    def _update(self, element):
+        for child in self.children[::-1]:
+            if isinstance(child, Factory.PTInput) and not child.readonly:
+                value = getattr(element, child.param)
+                child.text = value if isinstance(value, str) else str(value)
+            elif isinstance(child, Factory.PSpinner) and child.param == 'type_variety':
+                value = getattr(element, child.param)
+                if value != '':
+                    child.text = value
+
+    # updates element info when form value change occurs
+    def _update_el(self, param_name, param_type, readonly, value):
+        if not readonly:
+            element = app.root.ids['topomap'].selected
+            # updates element attributes
+            if element and not getattr(element, param_name) == value:
+                if param_name == 'type_variety' and value in ('-- select --', ''):
+                    setattr(element, param_name, '')
+                else:
+                    setattr(element, param_name, value if not param_type == 'float' else float(value))
+
+    # displays equipment values from equipment.json
+    def _update_eqpt(self, variety, edfa_gmin, edfa_gmax, edfa_pmax):
+        if not variety in ('-- select --', ''):
+            edfa_gmin.text = str(self.type_varieties[variety].gain_min)
+            edfa_gmax.text = str(self.type_varieties[variety].gain_flatmax)
+            edfa_pmax.text = str(self.type_varieties[variety].p_max)
+        else:
+            edfa_gmin.text = ''
+            edfa_gmax.text = ''
+            edfa_pmax.text = ''
+
+
+'''
+Tab content to display Transceiver element parameters
+'''
+class TrxTabContent(GridLayout):
+
+    # updates form info when element is selected
+    def _update(self, element):
+        for child in self.children[::-1]:
+            if isinstance(child, Factory.PTInput) and not child.readonly:
+                value = getattr(element, child.param)
+                child.text = value if isinstance(value, str) else str(value)
+            elif isinstance(child, Factory.PSpinner) and child.param in ('type_variety', 'format'):
+                value = getattr(element, child.param)
+                if value != '':
+                    child.text = value
+
+    # updates element info when form value change occurs
+    def _update_el(self, param_name, param_type, readonly, value):
+        if not readonly:
+            element = app.root.ids['topomap'].selected
+            # updates element attributes
+            if element and not getattr(element, param_name) == value:
+                if param_name in ('type_variety', 'format') and value in ('-- select --', ''):
+                    setattr(element, param_name, '')
+                else:
+                    setattr(element, param_name, value if not param_type == 'float' else float(value))
+
+    # updates format values when type_varieties seleted
+    def _update_format(self, value, format_spinner, type_varieties):
+        if value != '-- select --':
+            format_spinner.text = '-- select --'
+            format_spinner.values = ['-- select --'] + [i['format'] for i in type_varieties[value].mode]
+        else:
+            format_spinner.text = '-- select --'
+            format_spinner.values = ['-- select --']
+
+    # displays equipment values from equipment.json
+    def _update_eqpt(self, trx_type, trx_variety, trx_baudrate, trx_osnr, trx_bitrate):
+        if not trx_variety in ('-- select --', ''):
+            trx_modes = self.type_varieties[trx_type].mode
+            trx_mode = [m for m in trx_modes if m['format'] == trx_variety]
+            trx_baudrate.text = str(trx_mode[0]['baudrate']/1e9)
+            trx_osnr.text = str(trx_mode[0]['OSNR'])
+            trx_bitrate.text = str(trx_mode[0]['bit_rate']/1e9)
+        else:
+            trx_baudrate.text = ''
+            trx_osnr.text = ''
+            trx_bitrate.text = ''
 
 
 '''

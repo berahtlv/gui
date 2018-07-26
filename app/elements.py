@@ -1,6 +1,7 @@
 '''
 Describes topology map element objects, part of main.py
 '''
+from kivy.app import App
 from kivy.uix.behaviors.drag import DragBehavior
 from kivy.uix.image import Image
 from kivy.uix.widget import Widget
@@ -54,6 +55,13 @@ class TopomapIcon(DragBehavior, Image):
                             # ensures that connection is removed once
                             uniq.append(c)
                             self.parent.remove_widget(c['obj'])
+
+                # clears TabbedPanel tabs Content
+                app = App.get_running_app()
+                if app.root.ids['topomap'].selected is self:
+                    app.root.ids['paramtab'].content = None
+                    app.root.ids['topomap']._refresh_paramtab()
+                    app.root.ids['basictabcontent']._clear_form()
 
                 # related DiGraph edges are removed automatically
                 self.parent.topology.remove_node(self)
@@ -116,7 +124,7 @@ ROADM draggable element
 '''
 class GRoadm(TopomapIcon):
 
-    loss = NumericProperty()
+    loss = NumericProperty(17)
     params = ReferenceListProperty(loss)
 
 
@@ -126,15 +134,9 @@ EDFA draggable element
 class GEdfa(TopomapIcon):
 
     gain_target = NumericProperty()
-    tilt_target = NumericProperty()
-    gain_flatmax = NumericProperty()
-    gain_min = NumericProperty()
-    p_max = NumericProperty()
-    nf_min = NumericProperty()
-    nf_max = NumericProperty()
-    cfg_type = BooleanProperty(False) # True = advanced Edfa config
-    params = ReferenceListProperty(gain_target, tilt_target, gain_flatmax,
-                                        gain_min, p_max, nf_min, nf_max, cfg_type)
+    tilt_target = NumericProperty(0)
+    type_variety = StringProperty()
+    params = ReferenceListProperty(gain_target, tilt_target, type_variety)
 
 
 '''
@@ -142,12 +144,9 @@ Transceiver draggable element
 '''
 class GTransceiver(TopomapIcon):
 
-    #frequency = NumericProperty()
+    type_variety = StringProperty()
     format = StringProperty()
-    baudrate = NumericProperty()
-    osnr = NumericProperty()
-    bitrate = NumericProperty()
-    mode = ReferenceListProperty(format, baudrate, osnr, bitrate)
+    params = ReferenceListProperty(type_variety, format)
 
 
 '''
@@ -155,7 +154,7 @@ Fused draggable element
 '''
 class GFused(TopomapIcon):
 
-    loss = NumericProperty()
+    loss = NumericProperty(0.5)
     params = ReferenceListProperty(loss)
 
 
@@ -166,9 +165,8 @@ class GFiber(TopomapIcon):
 
     length = NumericProperty()
     loss_coef = NumericProperty(0.2)
-    dispersion = NumericProperty()
-    gamma = NumericProperty()
-    params = ReferenceListProperty(length, loss_coef, dispersion, gamma)
+    type_variety = StringProperty()
+    params = ReferenceListProperty(length, loss_coef, type_variety)
 
 
 '''

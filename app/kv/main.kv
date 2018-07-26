@@ -4,6 +4,8 @@
 
 #:include kv/popups.kv
 
+#:import load_equipment gnpy.core.equipment.load_equipment
+
 # workaround: Template can't use ids
 #:set sidebar_width 60
 #:set sidebar_padding 5
@@ -112,6 +114,7 @@ MainWindow:
                         text: 'Basic Info'
 
                         BasicTabContent:
+                            id: basictabcontent
                             # Here is list of parameters
 
                     TabbedPanelItem:
@@ -204,82 +207,228 @@ MainWindow:
     height: toolbar_height - 2 * toolbar_padding
     width: toolbar_height - 2 * toolbar_padding
 
-<ParamLabel@BoxLayout>:
-    orientation: 'horizontal'
-    ltext: ''
-    lvalue: ''
-    lvalue_type: None
-    lparam: ''
+<PLabel@Label>:
+    font_size: 14
 
-    Label:
-        id: label
-        text: root.ltext
-        font_size: 14
-    TextInput:
-        input_filter: root.lvalue_type
-        text: root.lvalue
-        multiline: False
-        font_size: 14
-        on_text: root.parent._update_el(root.lparam, root.lvalue_type, self.text)
+<PTInput@TextInput>:
+    multiline: False
+    font_size: 14
+    on_text: self.parent._update_el(self.param, self.input_filter, self.readonly, self.text)
+
+<PSpinner@Spinner>:
+    sync_height: True
 
 <RoadmTabContent>:
-    orientation: 'vertical'
+    col: 2
+    rows: 1
     size_hint: None, None
-    size: 300, len(self.children) * 29
+    size: 350, self.rows * 29
 
-    ParamLabel:
-        ltext: 'Loss, dB'
-        lvalue_type: 'float'
-        lparam: 'loss'
+    PLabel:
+        text: 'Loss, dB'
+    PTInput:
+        input_filter: 'float'
+        param: 'loss'
+
+<FusedTabContent>:
+    col: 2
+    rows: 1
+    size_hint: None, None
+    size: 350, self.rows * 29
+
+    PLabel:
+        text: 'Loss, dB'
+    PTInput:
+        input_filter: 'float'
+        param: 'loss'
+
+<TrxTabContent>:
+    col: 2
+    rows: 5
+    size_hint: None, None
+    size: 300, self.rows * 29
+    type_varieties: load_equipment(app.json_path + 'eqpt_config.json')['Transceiver']
+
+    PLabel:
+        text: 'Transceiver Type'
+    PSpinner:
+        id: trx_type
+        text: '-- select --'
+        values: ('-- select --',) + tuple(root.type_varieties.keys())
+        param: 'type_variety'
+        on_text:
+            root._update_format(self.text, trx_format, root.type_varieties)
+            root._update_el(self.param, None, False, self.text)
+
+    PLabel:
+        text: 'Format'
+    PSpinner:
+        id: trx_format
+        text: '-- select --'
+        values: ('-- select --',)
+        param: 'format'
+        on_text:
+            root._update_eqpt(trx_type.text, self.text, trx_baudrate, trx_osnr, trx_bitrate)
+            root._update_el(self.param, None, False, self.text)
+
+    PLabel:
+        text: 'Baudrate, Gbaud'
+    PTInput:
+        id: trx_baudrate
+        param: 'baudrate'
+        readonly: True
+
+    PLabel:
+        text: 'OSNR, dB/0.1nm'
+    PTInput:
+        id: trx_osnr
+        param: 'OSNR'
+        readonly: True
+
+    PLabel:
+        text: 'Bitrate, Gbps'
+    PTInput:
+        id: trx_bitrate
+        param: 'bit_rate'
+        readonly: True
 
 <FiberTabContent>:
-    orientation: 'vertical'
+    col: 4
+    rows: 3
     size_hint: None, None
-    size: 300, len(self.children) * 29
+    size: 650, self.rows * 29
+    type_varieties: load_equipment(app.json_path + 'eqpt_config.json')['Fiber']
 
-    ParamLabel:
-        ltext: 'Length, km'
-        lvalue_type: 'float'
-        lparam: 'length'
+    PLabel:
+        text: 'Length, km'
+    PTInput:
+        input_filter: 'float'
+        param: 'length'
 
-    ParamLabel:
-        ltext: 'Loss, dB/km'
-        lvalue_type: 'float'
-        lparam: 'loss_coef'
+    PLabel:
+        text: 'Fiber Type'
+    PSpinner:
+        text: '-- select --'
+        values: ('-- select --',) + tuple(root.type_varieties.keys())
+        param: 'type_variety'
+        on_text:
+            root._update_eqpt(self.text, fiber_disp, fiber_gamma)
+            root._update_el(self.param, None, False, self.text)
 
-    ParamLabel:
-        ltext: 'Dispersion, ps/km'
-        lvalue_type: 'float'
-        lparam: 'dispersion'
+    PLabel:
+        text: 'Loss, dB/km'
+    PTInput:
+        input_filter: 'float'
+        param: 'loss_coef'
 
-    ParamLabel:
-        ltext: 'Gamma'
-        lvalue_type: 'float'
-        lparam: 'gamma'
-    
+    PLabel:
+        text: 'Dispersion, ps/nm/km'
+    PTInput:
+        id: fiber_disp
+        param: 'dispersion'
+        readonly: True
+
+    # empty space
+    Widget:
+    Widget:
+
+    PLabel:
+        text: 'Gamma'
+    PTInput:
+        id: fiber_gamma
+        param: 'gamma'
+        readonly: True
+
+<EdfaTabContent>:
+    col: 4
+    rows: 4
+    size_hint: None, None
+    size: 650, self.rows * 29
+    type_varieties: load_equipment(app.json_path + 'eqpt_config.json')['Edfa']
+
+    PLabel:
+        text: 'Gain target, dB'
+    PTInput:
+        input_filter: 'float'
+        param: 'gain_target'
+
+    PLabel:
+        text: 'EDFA Type'
+    PSpinner:
+        text: '-- select --'
+        values: ('-- select --',) + tuple(root.type_varieties.keys())
+        param: 'type_variety'
+        on_text:
+            root._update_eqpt(self.text, edfa_gmin, edfa_gmax, edfa_pmax)
+            root._update_el(self.param, None, False, self.text)
+
+    PLabel:
+        text: 'Tilt target'
+    PTInput:
+        input_filter: 'float'
+        param: 'tilt_target'
+
+    PLabel:
+        text: 'Gain max, dB'
+    PTInput:
+        id: edfa_gmax
+        input_filter: 'float'
+        param: 'gain_flatmax'
+        readonly: True
+
+    # empty space
+    Widget:
+    Widget:
+
+    PLabel:
+        text: 'Gain min, dB'
+    PTInput:
+        id: edfa_gmin
+        input_filter: 'float'
+        param: 'gain_min'
+        readonly: True
+
+    # empty space
+    Widget:
+    Widget:
+
+    PLabel:
+        text: 'Max output, dBm'
+    PTInput:
+        id: edfa_pmax
+        input_filter: 'float'
+        param: 'p_max'
+        readonly: True
+
 <BasicTabContent>:
-    orientation: 'vertical'
+    col: 2
+    rows: 5
     size_hint: None, None
-    size: 300, len(self.children) * 29
+    size: 350, self.rows * 29
 
-    ParamLabel:
-        ltext: 'Element ID'
-        lparam: 'el_id'
+    PLabel:
+        text: 'Element ID'
+    PTInput:
+        param: 'el_id'
 
-    ParamLabel:
-        ltext: 'Site name'
-        lparam: 'el_site'
+    PLabel:
+        text: 'Site name'
+    PTInput:
+        param: 'el_site'
 
-    ParamLabel:
-        ltext: 'Region'
-        lparam: 'el_region'
+    PLabel:
+        text: 'Region'
+    PTInput:
+        param: 'el_region'
 
-    ParamLabel:
-        ltext: 'Latitude'
-        lvalue_type: 'float'
-        lparam: 'el_latitude'
+    PLabel:
+        text: 'Latitude'
+    PTInput:
+        input_filter: 'float'
+        param: 'el_latitude'
 
-    ParamLabel:
-        ltext: 'Longitude'
-        lvalue_type: 'float'
-        lparam: 'el_longitude'
+    PLabel:
+        text: 'Longitude'
+    PTInput:
+        input_filter: 'float'
+        param: 'el_longitude'
