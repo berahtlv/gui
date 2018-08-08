@@ -1,5 +1,5 @@
 '''
-Describes content of Popups, addition to main.py
+Describes content of Popups, part of main.py
 '''
 from kivy.uix.boxlayout import BoxLayout
 from kivy.properties import ObjectProperty, StringProperty, ListProperty

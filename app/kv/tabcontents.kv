@@ -1,0 +1,253 @@
+# Describes TabbedPanel tabs layout and content, part of main.kv
+
+<PLabel@Label>:
+    font_size: 14
+
+<PTInput@TextInput>:
+    multiline: False
+    font_size: 14
+    on_text: self.parent._update_el(self.param, self.input_filter, self.readonly, self.text)
+
+<PSpinner@Spinner>:
+    sync_height: True
+
+<ReadyCheck@CheckBox>:
+    on_active: self.parent._update_el(self.param, None, False, self.active)
+    param: 'ready'
+
+<RoadmTabContent>:
+    col: 2
+    rows: 2
+    size_hint: None, None
+    size: 350, self.rows * 29
+    items: (ready, )
+
+    PLabel:
+        text: 'Ready'
+    ReadyCheck:
+        id: ready
+
+    PLabel:
+        text: 'Loss, dB'
+    PTInput:
+        input_filter: 'float'
+        param: 'loss'
+
+<FusedTabContent>:
+    col: 2
+    rows: 2
+    size_hint: None, None
+    size: 350, self.rows * 29
+    items: (ready, )
+
+    PLabel:
+        text: 'Ready'
+    ReadyCheck:
+        id: ready
+
+    PLabel:
+        text: 'Loss, dB'
+    PTInput:
+        input_filter: 'float'
+        param: 'loss'
+
+<TrxTabContent>:
+    col: 4
+    rows: 3
+    size_hint: None, None
+    size: 700, self.rows * 29
+    type_varieties: app.root.ids['paramtab'].equipment['Transceiver']
+    items: (trx_ready, )
+
+    PLabel:
+        text: 'Ready'
+    ReadyCheck:
+        id: trx_ready
+
+    PLabel:
+        text: 'Baudrate, Gbaud'
+    PTInput:
+        id: trx_baudrate
+        param: 'baudrate'
+        readonly: True
+
+    PLabel:
+        text: 'Transceiver Type'
+    PSpinner:
+        id: trx_type
+        text: '-- select --'
+        values: ('-- select --',) + tuple(root.type_varieties.keys())
+        param: 'type_variety'
+        on_text:
+            root._update_format(self.text, trx_format, root.type_varieties)
+            root._update_el(self.param, None, False, self.text)
+
+    PLabel:
+        text: 'OSNR, dB/0.1nm'
+    PTInput:
+        id: trx_osnr
+        param: 'OSNR'
+        readonly: True
+
+    PLabel:
+        text: 'Format'
+    PSpinner:
+        id: trx_format
+        text: '-- select --'
+        values: ('-- select --',)
+        param: 'trx_format'
+        on_text:
+            root._update_eqpt(trx_type.text, self.text, trx_baudrate, trx_osnr, trx_bitrate)
+            root._update_el(self.param, None, False, self.text)
+
+    PLabel:
+        text: 'Bitrate, Gbps'
+    PTInput:
+        id: trx_bitrate
+        param: 'bit_rate'
+        readonly: True
+
+<FiberTabContent>:
+    col: 4
+    rows: 3
+    size_hint: None, None
+    size: 700, self.rows * 29
+    type_varieties: app.root.ids['paramtab'].equipment['Fiber']
+    items: (ready, )
+
+    PLabel:
+        text: 'Ready'
+    ReadyCheck:
+        id: ready
+
+    PLabel:
+        text: 'Fiber Type'
+    PSpinner:
+        text: '-- select --'
+        values: ('-- select --',) + tuple(root.type_varieties.keys())
+        param: 'type_variety'
+        on_text:
+            root._update_eqpt(self.text, fiber_disp, fiber_gamma)
+            root._update_el(self.param, None, False, self.text)
+
+    PLabel:
+        text: 'Length, km'
+    PTInput:
+        input_filter: 'float'
+        param: 'length'
+
+    PLabel:
+        text: 'Dispersion, ps/nm/km'
+    PTInput:
+        id: fiber_disp
+        param: 'dispersion'
+        readonly: True
+
+    PLabel:
+        text: 'Loss, dB/km'
+    PTInput:
+        input_filter: 'float'
+        param: 'loss_coef'
+
+    PLabel:
+        text: 'Gamma'
+    PTInput:
+        id: fiber_gamma
+        param: 'gamma'
+        readonly: True
+
+<EdfaTabContent>:
+    col: 4
+    rows: 4
+    size_hint: None, None
+    size: 700, self.rows * 29
+    type_varieties: app.root.ids['paramtab'].equipment['Edfa']
+    items: (ready, )
+
+    PLabel:
+        text: 'Ready'
+    ReadyCheck:
+        id: ready
+
+    PLabel:
+        text: 'EDFA Type'
+    PSpinner:
+        text: '-- select --'
+        values: ('-- select --',) + tuple(root.type_varieties.keys())
+        param: 'type_variety'
+        on_text:
+            root._update_eqpt(self.text, edfa_gmin, edfa_gmax, edfa_pmax)
+            root._update_el(self.param, None, False, self.text)
+
+    PLabel:
+        text: 'Gain target, dB'
+    PTInput:
+        input_filter: 'float'
+        param: 'gain_target'
+
+    PLabel:
+        text: 'Gain max, dB'
+    PTInput:
+        id: edfa_gmax
+        input_filter: 'float'
+        param: 'gain_flatmax'
+        readonly: True
+
+    PLabel:
+        text: 'Tilt target'
+    PTInput:
+        input_filter: 'float'
+        param: 'tilt_target'
+
+    PLabel:
+        text: 'Gain min, dB'
+    PTInput:
+        id: edfa_gmin
+        input_filter: 'float'
+        param: 'gain_min'
+        readonly: True
+
+    # empty space
+    Widget:
+    Widget:
+
+    PLabel:
+        text: 'Max output, dBm'
+    PTInput:
+        id: edfa_pmax
+        input_filter: 'float'
+        param: 'p_max'
+        readonly: True
+
+<BasicTabContent>:
+    col: 2
+    rows: 5
+    size_hint: None, None
+    size: 350, self.rows * 29
+
+    PLabel:
+        text: 'Element ID'
+    PTInput:
+        param: 'el_id'
+
+    PLabel:
+        text: 'Site name'
+    PTInput:
+        param: 'el_site'
+
+    PLabel:
+        text: 'Region'
+    PTInput:
+        param: 'el_region'
+
+    PLabel:
+        text: 'Latitude'
+    PTInput:
+        input_filter: 'float'
+        param: 'el_latitude'
+
+    PLabel:
+        text: 'Longitude'
+    PTInput:
+        input_filter: 'float'
+        param: 'el_longitude'

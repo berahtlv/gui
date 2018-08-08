@@ -38,6 +38,9 @@ class TopomapIcon(DragBehavior, Image):
         self.el_id = 'ID' + ''.join((str(random.randrange(0,9)) for i in range(3)))
         self.el_latitude = round(self.y, 2)
         self.el_longitude = round(self.x, 2)
+        # 'automatic' simulation mode
+        if App.get_running_app().simmode.text == 'Automatic':
+            self.ready = True
 
     def on_touch_down(self, touch):
         if self.collide_point(*touch.pos):
@@ -118,6 +121,13 @@ class TopomapIcon(DragBehavior, Image):
             elif (self.y + self.height + dy) > (self.parent.y + self.parent.height):
                 self.y = (self.parent.y + self.parent.height) - self.height - dy
 
+    def on_ready(self, instance, value):
+        self._ensure_ready(App.get_running_app().simmode.text)
+
+    # verifies that all required parameters are entered
+    def _ensure_ready(self, simmode):
+        raise NotImplementedError('Implementation left for derivative classes')
+
 
 '''
 ROADM draggable element
@@ -127,6 +137,18 @@ class GRoadm(TopomapIcon):
     loss = NumericProperty(17)
     params = ReferenceListProperty(loss)
 
+    def on_params(self, instance, value):
+        self._ensure_ready(App.get_running_app().simmode.text)
+
+    # verifies that all required parameters are entered
+    def _ensure_ready(self, simmode):
+        # any attenuation value allowed
+        self.ready = True
+        # updates 'Parameters' tab
+        app = App.get_running_app()
+        if app.root.ids['topomap'].selected is self:
+            app.root.ids['paramtab'].content.items[0].active = self.ready
+
 
 '''
 EDFA draggable element
@@ -135,8 +157,29 @@ class GEdfa(TopomapIcon):
 
     gain_target = NumericProperty()
     tilt_target = NumericProperty(0)
-    type_variety = StringProperty()
+    type_variety = StringProperty('-- select --')
     params = ReferenceListProperty(gain_target, tilt_target, type_variety)
+
+    def on_params(self, instance, value):
+        self._ensure_ready(App.get_running_app().simmode.text)
+
+    # verifies that all required parameters are entered correctly
+    def _ensure_ready(self, simmode):
+        app = App.get_running_app()
+        if simmode == 'Automatic' and self.type_variety != '-- select --':
+            self.ready = True
+        elif simmode in ('Advanced', 'Mixed') and self.type_variety != '-- select --':
+            amp = app.root.ids['paramtab'].equipment['Edfa'][self.type_variety]
+            if amp.gain_flatmax >= self.gain_target >= amp.gain_min:
+                self.ready = True
+            else:
+                self.ready = False
+        else:
+            self.ready = False
+
+        # updates 'Parameters' tab
+        if app.root.ids['topomap'].selected is self:
+            app.root.ids['paramtab'].content.items[0].active = self.ready
 
 
 '''
@@ -144,9 +187,24 @@ Transceiver draggable element
 '''
 class GTransceiver(TopomapIcon):
 
-    type_variety = StringProperty()
-    format = StringProperty()
-    params = ReferenceListProperty(type_variety, format)
+    type_variety = StringProperty('-- select --')
+    trx_format = StringProperty('-- select --')
+    params = ReferenceListProperty(type_variety, trx_format)
+
+    def on_params(self, instance, value):
+        self._ensure_ready(App.get_running_app().simmode.text)
+
+    # verifies that all required parameters are entered
+    def _ensure_ready(self, simmode):
+        if self.type_variety != '-- select --' and self.trx_format != '-- select --':
+            self.ready = True
+        else:
+            self.ready = False
+
+        # updates 'Parameters' tab
+        app = App.get_running_app()
+        if app.root.ids['topomap'].selected is self:
+            app.root.ids['paramtab'].content.items[0].active = self.ready
 
 
 '''
@@ -157,6 +215,18 @@ class GFused(TopomapIcon):
     loss = NumericProperty(0.5)
     params = ReferenceListProperty(loss)
 
+    def on_params(self, instance, value):
+        self._ensure_ready(App.get_running_app().simmode.text)
+
+    # verifies that all required parameters are entered
+    def _ensure_ready(self, simmode):
+        # any attenuation value allowed
+        self.ready = True
+        # updates 'Parameters' tab
+        app = App.get_running_app()
+        if app.root.ids['topomap'].selected is self:
+            app.root.ids['paramtab'].content.items[0].active = self.ready
+
 
 '''
 Fiber draggable element
@@ -165,8 +235,23 @@ class GFiber(TopomapIcon):
 
     length = NumericProperty()
     loss_coef = NumericProperty(0.2)
-    type_variety = StringProperty()
+    type_variety = StringProperty('-- select --')
     params = ReferenceListProperty(length, loss_coef, type_variety)
+
+    def on_params(self, instance, value):
+        self._ensure_ready(App.get_running_app().simmode.text)
+
+    # verifies that all required parameters are entered
+    def _ensure_ready(self, simmode):
+        if self.length > 0:
+            self.ready = True
+        else:
+            self.ready = False
+
+        # updates 'Parameters' tab
+        app = App.get_running_app()
+        if app.root.ids['topomap'].selected is self:
+            app.root.ids['paramtab'].content.items[0].active = self.ready
 
 
 '''

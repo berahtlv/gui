@@ -5,6 +5,7 @@ __version__ = '0.0.1'
 __author__ = 'Roberts Miculens'
 __email__ = 'robertsmg@gmail.com'
 __repo__ = 'github.com/berahtlv/gui'
+__license__ = 'BSD 3-Clause License'
 
 import kivy
 kivy.require('1.10.0')
@@ -34,6 +35,7 @@ from kivy.uix.popup import Popup
 from kivy.uix.settings import SettingsWithSidebar
 from kivy.uix.tabbedpanel import TabbedPanel
 from kivy.uix.spinner import Spinner
+from kivy.uix.checkbox import CheckBox
 from kivy.properties import (StringProperty, ObjectProperty, ListProperty,
                              NumericProperty, ReferenceListProperty)
 from kivy.core.window import Window
@@ -115,7 +117,7 @@ class MainWindow(BoxLayout):
 
     # opens informative popup window with 'OK' button
     def open_info(self, title='About', msg=f'GUI application v{__version__}\n\n'+
-                  f'[i][size=11]{__author__}\n{__email__}\n{__repo__}[/size][/i]'):
+                  f'[i][size=11]{__author__}\n{__email__}\n{__repo__}\n{__license__}[/size][/i]'):
         content = InfoPopup(_close=self.close_popup, _msg=msg)
         self._popup = Popup(title=title, size_hint=(None,None), size=(350,200),
                             auto_dismiss=False, content=content)
@@ -257,6 +259,7 @@ class MenuButton(Button):
 
 
 ToolIconDescr = namedtuple('ToolIconDescr', 'down normal descr clb')
+SimMode = namedtuple('SimMode', 'name descr clb')
 
 '''
 Main toolbar for Menubar function shortcuts
@@ -280,11 +283,33 @@ class Toolbar(BoxLayout):
                            lambda: app.root.open_info()),
     )
 
+    # simulation modes, changes TopomapIcon.ready state
+    modes = (SimMode('Advanced', 'Advanced simulation mode - uses only provided configuration',
+                     print),
+             SimMode('Mixed', 'Mixed simulation mode - mix of auto and advanced simulation modes',
+                     print),
+             SimMode('Automatic', 'Automatic simulation mode - uses automatically provided configuration',
+                     print)
+    )
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
+        # toolbar icons added
         for icon in self.icons:
             self.add_widget(ToolbarIcon(icon))
+
+        # padding - empty space
+        self.add_widget(Widget(size_hint_x=None, width=50))
+
+        # simulation mode spinner added
+        self.add_widget(Label(text='Simulation Mode: ', size_hint_x=None,
+                              width=100, font_size=13))
+        spinner = Factory.ToolbarSpinner()
+        app.simmode = spinner
+        spinner.text = '-- select --'
+        spinner.values = [spinner.text] + [mode.name for mode in self.modes]
+        self.add_widget(spinner)
 
 
 '''
@@ -330,6 +355,7 @@ class Sidebar(BoxLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
+        # sidebar icons added
         self.add_widget(Widget())
         for icon in self.icons_el:
             self.add_widget(SidebarIcon(icon))
@@ -444,6 +470,24 @@ class TopologyMap(RelativeLayout):
         if selected_tab.text == 'Parameters':
             app.root.ids['tabspanel'].switch_to(selected_tab)
 
+    # changes TopomapIcon subclassed elements readiness state
+    def _refresh_ready(self, mode):
+        if self.children:
+            for child in self.children:
+                try:
+                    # finds elements with .ready attribute
+                    getattr(child, 'ready')
+                except AttributeError:
+                    pass
+                else:
+                    # changes .ready attribute according to simulation mode
+                    if mode == 'Automatic':
+                        if not child.ready:
+                            child.ready = True
+                    elif mode in ('Advanced', 'Mixed', '-- select --'):
+                        if child.ready:
+                            child.ready = False
+
 
 '''
 Tab content to display basic element info
@@ -463,7 +507,8 @@ class BasicTabContent(GridLayout):
             element = app.root.ids['topomap'].selected
             # updates element attributes
             if element and not getattr(element, param_name) == value:
-                setattr(element, param_name, value if not param_type == 'float' else float(value))
+                setattr(element, param_name, value
+                        if not param_type == 'float' else float(value if value else 0))
 
     # clears form values
     def _clear_form(self):
@@ -478,10 +523,16 @@ class RoadmTabContent(GridLayout):
 
     # updates form info when element is selected
     def _update(self, element):
-        for ptinput in (i for i in self.children
-                        if isinstance(i, Factory.PTInput) and not i.readonly):
-            value = getattr(element, ptinput.param)
-            ptinput.text = value if isinstance(value, str) else str(value)
+        for child in self.children:
+            if isinstance(child, Factory.PTInput) and not child.readonly:
+                value = getattr(element, child.param)
+                child.text = value if isinstance(value, str) else str(value)
+            elif isinstance(child, CheckBox):
+                child.active = element.ready
+                if app.simmode.text == 'Mixed':
+                    child.disabled = False
+                else:
+                    child.disabled = True
 
     # updates element info when form value change occurs
     def _update_el(self, param_name, param_type, readonly, value):
@@ -489,7 +540,8 @@ class RoadmTabContent(GridLayout):
             element = app.root.ids['topomap'].selected
             # updates element attributes
             if element and not getattr(element, param_name) == value:
-                setattr(element, param_name, value if not param_type == 'float' else float(value))
+                setattr(element, param_name, value
+                        if not param_type == 'float' else float(value if value else 0))
 
 
 '''
@@ -499,10 +551,17 @@ class FusedTabContent(GridLayout):
 
     # updates form info when element is selected
     def _update(self, element):
-        for ptinput in (i for i in self.children
-                        if isinstance(i, Factory.PTInput) and not i.readonly):
-            value = getattr(element, ptinput.param)
-            ptinput.text = value if isinstance(value, str) else str(value)
+        for child in self.children:
+            if isinstance(child, Factory.PTInput) and not child.readonly:
+                value = getattr(element, child.param)
+                child.text = value if isinstance(value, str) else str(value)
+            elif isinstance(child, CheckBox):
+                child.active = element.ready
+                if app.simmode.text == 'Mixed':
+                    child.disabled = False
+                else:
+                    child.disabled = True
+
 
     # updates element info when form value change occurs
     def _update_el(self, param_name, param_type, readonly, value):
@@ -510,7 +569,8 @@ class FusedTabContent(GridLayout):
             element = app.root.ids['topomap'].selected
             # updates element attributes
             if element and not getattr(element, param_name) == value:
-                setattr(element, param_name, value if not param_type == 'float' else float(value))
+                setattr(element, param_name, value
+                        if not param_type == 'float' else float(value if value else 0))
 
 
 '''
@@ -526,8 +586,13 @@ class FiberTabContent(GridLayout):
                 child.text = value if isinstance(value, str) else str(value)
             elif isinstance(child, Factory.PSpinner) and child.param == 'type_variety':
                 value = getattr(element, child.param)
-                if value != '':
-                    child.text = value
+                child.text = value
+            elif isinstance(child, CheckBox):
+                child.active = element.ready
+                if app.simmode.text == 'Mixed':
+                    child.disabled = False
+                else:
+                    child.disabled = True
 
     # updates element info when form value change occurs
     def _update_el(self, param_name, param_type, readonly, value):
@@ -535,14 +600,12 @@ class FiberTabContent(GridLayout):
             element = app.root.ids['topomap'].selected
             # updates element attributes
             if element and not getattr(element, param_name) == value:
-                if param_name == 'type_variety' and value in ('-- select --', ''):
-                    setattr(element, param_name, '')
-                else:
-                    setattr(element, param_name, value if not param_type == 'float' else float(value))
+                setattr(element, param_name, value
+                        if not param_type == 'float' else float(value) if value else 0)
 
     # displays equipment values from equipment.json
     def _update_eqpt(self, variety, fiber_disp, fiber_gamma):
-        if not variety in ('-- select --', ''):
+        if not variety in ('-- select --'):
             fiber_disp.text = str(self.type_varieties[variety].dispersion)
             fiber_gamma.text = str(self.type_varieties[variety].gamma)
         else:
@@ -563,8 +626,13 @@ class EdfaTabContent(GridLayout):
                 child.text = value if isinstance(value, str) else str(value)
             elif isinstance(child, Factory.PSpinner) and child.param == 'type_variety':
                 value = getattr(element, child.param)
-                if value != '':
-                    child.text = value
+                child.text = value
+            elif isinstance(child, CheckBox):
+                child.active = element.ready
+                if app.simmode.text == 'Mixed':
+                    child.disabled = False
+                else:
+                    child.disabled = True
 
     # updates element info when form value change occurs
     def _update_el(self, param_name, param_type, readonly, value):
@@ -572,14 +640,12 @@ class EdfaTabContent(GridLayout):
             element = app.root.ids['topomap'].selected
             # updates element attributes
             if element and not getattr(element, param_name) == value:
-                if param_name == 'type_variety' and value in ('-- select --', ''):
-                    setattr(element, param_name, '')
-                else:
-                    setattr(element, param_name, value if not param_type == 'float' else float(value))
+                setattr(element, param_name, value
+                        if not param_type == 'float' else float(value) if value else 0)
 
     # displays equipment values from equipment.json
     def _update_eqpt(self, variety, edfa_gmin, edfa_gmax, edfa_pmax):
-        if not variety in ('-- select --', ''):
+        if not variety in ('-- select --'):
             edfa_gmin.text = str(self.type_varieties[variety].gain_min)
             edfa_gmax.text = str(self.type_varieties[variety].gain_flatmax)
             edfa_pmax.text = str(self.type_varieties[variety].p_max)
@@ -596,14 +662,20 @@ class TrxTabContent(GridLayout):
 
     # updates form info when element is selected
     def _update(self, element):
+        # [::-1] ensures correct update order - 'type_variety' then 'format'
         for child in self.children[::-1]:
             if isinstance(child, Factory.PTInput) and not child.readonly:
                 value = getattr(element, child.param)
                 child.text = value if isinstance(value, str) else str(value)
-            elif isinstance(child, Factory.PSpinner) and child.param in ('type_variety', 'format'):
+            elif isinstance(child, Factory.PSpinner) and child.param in ('type_variety', 'trx_format'):
                 value = getattr(element, child.param)
-                if value != '':
-                    child.text = value
+                child.text = value
+            elif isinstance(child, CheckBox):
+                child.active = element.ready
+                if app.simmode.text == 'Mixed':
+                    child.disabled = False
+                else:
+                    child.disabled = True
 
     # updates element info when form value change occurs
     def _update_el(self, param_name, param_type, readonly, value):
@@ -611,10 +683,8 @@ class TrxTabContent(GridLayout):
             element = app.root.ids['topomap'].selected
             # updates element attributes
             if element and not getattr(element, param_name) == value:
-                if param_name in ('type_variety', 'format') and value in ('-- select --', ''):
-                    setattr(element, param_name, '')
-                else:
-                    setattr(element, param_name, value if not param_type == 'float' else float(value))
+                setattr(element, param_name, value
+                        if not param_type == 'float' else float(value) if value else 0)
 
     # updates format values when type_varieties seleted
     def _update_format(self, value, format_spinner, type_varieties):
@@ -627,7 +697,7 @@ class TrxTabContent(GridLayout):
 
     # displays equipment values from equipment.json
     def _update_eqpt(self, trx_type, trx_variety, trx_baudrate, trx_osnr, trx_bitrate):
-        if not trx_variety in ('-- select --', ''):
+        if not trx_variety in ('-- select --'):
             trx_modes = self.type_varieties[trx_type].mode
             trx_mode = [m for m in trx_modes if m['format'] == trx_variety]
             trx_baudrate.text = str(trx_mode[0]['baudrate']/1e9)
