@@ -36,6 +36,7 @@ from kivy.uix.settings import SettingsWithSidebar
 from kivy.uix.tabbedpanel import TabbedPanel
 from kivy.uix.spinner import Spinner
 from kivy.uix.checkbox import CheckBox
+from kivy.uix.scrollview import ScrollView
 from kivy.properties import (StringProperty, ObjectProperty, ListProperty,
                              NumericProperty, ReferenceListProperty)
 from kivy.core.window import Window
@@ -389,8 +390,13 @@ class SidebarIcon(ToggleButtonBehavior, Image):
             app.root.ids['topomap'].connectable_el = []
 
 
-# TODO: solve ScrollView bug 'RecursionError: maximum recursion depth exceeded in comparison'
+# BUG: solve ScrollView bug 'RecursionError: maximum recursion depth exceeded in comparison'
 #       sometimes arises when Splitter size is changed
+#       Workaround from kivy/kivy Issue #5638 (app not crushes, but topology map floats):
+class ScrollViewEdited(ScrollView):
+    def _update_effect_bounds(self, *args):
+        pass
+
 '''
 Topology map with draggable elements
 '''
@@ -508,7 +514,7 @@ class BasicTabContent(GridLayout):
             # updates element attributes
             if element and not getattr(element, param_name) == value:
                 setattr(element, param_name, value
-                        if not param_type == 'float' else float(value if value else 0))
+                        if not param_type == 'float' else float(value) if value else 0)
 
     # clears form values
     def _clear_form(self):
@@ -541,7 +547,7 @@ class RoadmTabContent(GridLayout):
             # updates element attributes
             if element and not getattr(element, param_name) == value:
                 setattr(element, param_name, value
-                        if not param_type == 'float' else float(value if value else 0))
+                        if not param_type == 'float' else float(value) if value else 0)
 
 
 '''
@@ -570,7 +576,7 @@ class FusedTabContent(GridLayout):
             # updates element attributes
             if element and not getattr(element, param_name) == value:
                 setattr(element, param_name, value
-                        if not param_type == 'float' else float(value if value else 0))
+                        if not param_type == 'float' else float(value) if value else 0)
 
 
 '''
