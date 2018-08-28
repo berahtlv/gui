@@ -16,10 +16,10 @@
     param: 'ready'
 
 <RoadmTabContent>:
-    col: 2
-    rows: 2
+    #col: 2
+    #rows: 2
     size_hint: None, None
-    size: 350, self.rows * 29
+    #size: 350, self.rows * 29
     items: (ready, )
 
     PLabel:
@@ -27,11 +27,11 @@
     ReadyCheck:
         id: ready
 
-    PLabel:
-        text: 'Loss, dB'
-    PTInput:
-        input_filter: 'float'
-        param: 'loss'
+    #PLabel:
+    #    text: 'Loss, dB'
+    #PTInput:
+    #    input_filter: 'float'
+    #    param: 'loss'
 
 <FusedTabContent>:
     col: 2

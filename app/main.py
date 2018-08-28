@@ -392,7 +392,7 @@ class SidebarIcon(ToggleButtonBehavior, Image):
 
 # BUG: solve ScrollView bug 'RecursionError: maximum recursion depth exceeded in comparison'
 #       sometimes arises when Splitter size is changed
-#       Workaround from kivy/kivy Issue #5638 (app not crushes, but topology map floats):
+#       Workaround from kivy/kivy Issue #5638 (app not crashes, but topology map floats):
 class ScrollViewEdited(ScrollView):
     def _update_effect_bounds(self, *args):
         pass
@@ -539,6 +539,37 @@ class RoadmTabContent(GridLayout):
                     child.disabled = False
                 else:
                     child.disabled = True
+
+        topology = app.root.ids['topomap'].topology
+        edges_in = topology.in_edges(element)
+        edges_out = topology.out_edges(element)
+        edges = tuple(edges_in) + tuple(edges_out)
+
+        if edges:
+            label = Factory.PLabel
+            input = Factory.PTInput
+            spinner = Factory.PSpinner
+            titles = (label(text='From Node'), label(text='To Node'))
+
+            self.columns = len(titles)
+            self.size_x = self.columns * 175
+            self.rows = len(edges) + 2
+            self.size_y = self.rows * 29
+
+            # ensures Ready check location, fills GridLayout first column
+            for i in range(self.columns - 2):
+                self.add_widget(Widget())
+
+            for title in titles:
+                self.add_widget(title)
+
+            for u, v in edges:
+                self.add_widget(input(text=u.el_id, readonly=True))
+                self.add_widget(input(text=v.el_id, readonly=True))
+
+            print(self.columns, self.size_x)
+            print(self.rows, self.size_y)
+
 
     # updates element info when form value change occurs
     def _update_el(self, param_name, param_type, readonly, value):
