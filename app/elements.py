@@ -35,7 +35,7 @@ class TopomapIcon(DragBehavior, Image):
         self.el_type = active_obj.el_type
         self.source = self.img
         # default values
-        self.el_id = 'ID' + ''.join((str(random.randrange(0,9)) for i in range(3)))
+        self.el_id = self.__class__.__name__[1:] + ''.join((str(random.randrange(0,9)) for i in range(3)))
         self.el_latitude = round(self.y, 2)
         self.el_longitude = round(self.x, 2)
         # 'automatic' simulation mode

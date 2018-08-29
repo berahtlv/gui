@@ -433,15 +433,23 @@ class TopologyMap(RelativeLayout):
 
             # adds graphical representation
             # TODO: find the reason of unexpected keyword argument 'canvas'
-            #       workaround at least for my installation
+            #       in Windows install, workaround at least for my installation
             connection = TopomapConnect(coord)
             if platform.system() == 'Windows':
                 self.add_widget(connection)
             else:
                 self.add_widget(connection, canvas='before')
             # updates topology, two edges as conn_dir = 'bidir'
-            self.topology.add_edge(*self.connectable_el, obj=connection)
-            self.topology.add_edge(*self.connectable_el[::-1], obj=connection)
+            # gets info about EDFA icon for initialization
+            for child in app.root.ids['sidebar'].children[::-1]:
+                child_type = getattr(child, 'el_type', 'EMPTY')
+                if child_type == 'GEdfa':
+                    icon_info = child
+                    break
+            self.topology.add_edge(*self.connectable_el, obj=connection,
+                                   amp_in=GEdfa(icon_info), amp_out=GEdfa(icon_info))
+            self.topology.add_edge(*self.connectable_el[::-1], obj=connection,
+                                   amp_in=GEdfa(icon_info), amp_out=GEdfa(icon_info))
 
         # unselects sidebar icon, active_icon and connectable_el are dropped in on_state event
         self.active_icon.state = 'normal'
@@ -545,11 +553,14 @@ class RoadmTabContent(GridLayout):
         edges_out = topology.out_edges(element)
         edges = tuple(edges_in) + tuple(edges_out)
 
-        if edges:
+        # displays edges info, ensures that childs are added once
+        if edges and len(self.children) <= 2:
             label = Factory.PLabel
             input = Factory.PTInput
             spinner = Factory.PSpinner
-            titles = (label(text='From Node'), label(text='To Node'))
+            titles = (label(text='From Node'), label(text='To Node'),
+                      label(text='Amp Out'), label(text='Info'), label(text='Out Gain'), label(text='Out Tilt'),
+                      label(text='Amp In'), label(text='Info'), label(text='In Gain'), label(text='In Tilt'))
 
             self.columns = len(titles)
             self.size_x = self.columns * 175
@@ -559,17 +570,22 @@ class RoadmTabContent(GridLayout):
             # ensures Ready check location, fills GridLayout first column
             for i in range(self.columns - 2):
                 self.add_widget(Widget())
-
+            # adds title row
             for title in titles:
                 self.add_widget(title)
-
+            # adds parameters rows
             for u, v in edges:
+                eparam = topology.get_edge_data(u, v)
                 self.add_widget(input(text=u.el_id, readonly=True))
                 self.add_widget(input(text=v.el_id, readonly=True))
-
-            print(self.columns, self.size_x)
-            print(self.rows, self.size_y)
-
+                self.add_widget(input(text=f"{eparam['amp_out'].type_variety}", readonly=True))
+                self.add_widget(Button(text='INFO'))
+                self.add_widget(input(text=f"{eparam['amp_out'].gain_target}", readonly=True))
+                self.add_widget(input(text=f"{eparam['amp_out'].tilt_target}", readonly=True))
+                self.add_widget(input(text=f"{eparam['amp_in'].type_variety}", readonly=True))
+                self.add_widget(Button(text='INFO'))
+                self.add_widget(input(text=f"{eparam['amp_in'].gain_target}", readonly=True))
+                self.add_widget(input(text=f"{eparam['amp_in'].tilt_target}", readonly=True))
 
     # updates element info when form value change occurs
     def _update_el(self, param_name, param_type, readonly, value):
