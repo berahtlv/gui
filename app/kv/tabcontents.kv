@@ -16,10 +16,12 @@
     param: 'ready'
 
 <RoadmTabContent>:
-    col: 2
-    rows: 1
     size_hint: None, None
-    size: 350, self.rows * 29
+    col: len(self.titles)
+    width: sum([i['width'] for i in self.sizes])
+    rows: 2
+    height: self.rows * 29
+    amp_varieties: app.root.ids['paramtab'].equipment['Edfa']
     items: (ready, )
 
     PLabel:

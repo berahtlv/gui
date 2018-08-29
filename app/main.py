@@ -530,10 +530,36 @@ class BasicTabContent(GridLayout):
             ptinput.text = '' if not ptinput.input_filter == 'float' else '0'
 
 
+RoadmTitleSizes = namedtuple('RoadmTitleSizes', 'node amp g t info')
+
 '''
 Tab content to display Roadm element parameters
 '''
 class RoadmTabContent(GridLayout):
+
+    titles = ListProperty() # connection paramater titles
+    sizes = RoadmTitleSizes(node={'size_hint_x':None, 'width':90},
+                           amp={'size_hint_x':None, 'width':160},
+                           g={'size_hint_x':None, 'width':50},
+                           t={'size_hint_x':None, 'width':50},
+                           info={'size_hint_x':None, 'width':40}
+    )
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        label = Factory.PLabel
+        # connection parameter titles defined
+        self.titles = [label(text='From Node', **self.sizes.node),
+                       label(text='To Node', **self.sizes.node),
+                       label(text='Amp Out', **self.sizes.amp),
+                       label(text='Info', **self.sizes.info),
+                       label(text='Gain', **self.sizes.g),
+                       label(text='Tilt', **self.sizes.t),
+                       label(text='Amp In', **self.sizes.amp),
+                       label(text='Info', **self.sizes.info),
+                       label(text='Gain', **self.sizes.g),
+                       label(text='Tilt', **self.sizes.t)
+                       ]
 
     # updates form info when element is selected
     def _update(self, element):
@@ -555,37 +581,39 @@ class RoadmTabContent(GridLayout):
 
         # displays edges info, ensures that childs are added once
         if edges and len(self.children) <= 2:
-            label = Factory.PLabel
-            input = Factory.PTInput
+            tinput = Factory.PTInput
             spinner = Factory.PSpinner
-            titles = (label(text='From Node'), label(text='To Node'),
-                      label(text='Amp Out'), label(text='Info'), label(text='Out Gain'), label(text='Out Tilt'),
-                      label(text='Amp In'), label(text='Info'), label(text='In Gain'), label(text='In Tilt'))
 
-            self.columns = len(titles)
-            self.size_x = self.columns * 175
             self.rows = len(edges) + 2
-            self.size_y = self.rows * 29
+            self.height = self.rows * 29
 
             # ensures Ready check location, fills GridLayout first column
-            for i in range(self.columns - 2):
+            for i in range(self.col - 2):
                 self.add_widget(Widget())
             # adds title row
-            for title in titles:
+            for title in self.titles:
                 self.add_widget(title)
             # adds parameters rows
             for u, v in edges:
                 eparam = topology.get_edge_data(u, v)
-                self.add_widget(input(text=u.el_id, readonly=True))
-                self.add_widget(input(text=v.el_id, readonly=True))
-                self.add_widget(input(text=f"{eparam['amp_out'].type_variety}", readonly=True))
-                self.add_widget(Button(text='INFO'))
-                self.add_widget(input(text=f"{eparam['amp_out'].gain_target}", readonly=True))
-                self.add_widget(input(text=f"{eparam['amp_out'].tilt_target}", readonly=True))
-                self.add_widget(input(text=f"{eparam['amp_in'].type_variety}", readonly=True))
-                self.add_widget(Button(text='INFO'))
-                self.add_widget(input(text=f"{eparam['amp_in'].gain_target}", readonly=True))
-                self.add_widget(input(text=f"{eparam['amp_in'].tilt_target}", readonly=True))
+                self.add_widget(tinput(text=u.el_id, readonly=True, **self.sizes.node))
+                self.add_widget(tinput(text=v.el_id, readonly=True, **self.sizes.node))
+                self.add_widget(spinner(text=('-- select --'),
+                                        values=('-- select --',) + tuple(self.amp_varieties.keys()),
+                                        **self.sizes.amp))
+                self.add_widget(Button(text='?', **self.sizes.info))
+                self.add_widget(tinput(text=f"{eparam['amp_out'].gain_target}",
+                                       readonly=True, **self.sizes.g))
+                self.add_widget(tinput(text=f"{eparam['amp_out'].tilt_target}",
+                                       readonly=True, **self.sizes.t))
+                self.add_widget(spinner(text=('-- select --'),
+                                        values=('-- select --',) + tuple(self.amp_varieties.keys()),
+                                        **self.sizes.amp))
+                self.add_widget(Button(text='?', **self.sizes.info))
+                self.add_widget(tinput(text=f"{eparam['amp_in'].gain_target}",
+                                       readonly=True, **self.sizes.g))
+                self.add_widget(tinput(text=f"{eparam['amp_in'].tilt_target}",
+                                       readonly=True, **self.sizes.t))
 
     # updates element info when form value change occurs
     def _update_el(self, param_name, param_type, readonly, value):
